@@ -19,6 +19,9 @@ const PKG_NOTE =
 const VITE_NOTE =
   "Vite: add the package to optimizeDeps.exclude (e.g. ['@huggingface/transformers', '@front-brain/transformers']) so the bundled Web Worker URL resolves.";
 
+const GESTURE_MODEL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task';
+const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+
 const q = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
 interface TaskExample {
@@ -412,6 +415,121 @@ export function chromeAISnippets(api: string): Snippet[] {
         `  });`,
         `  ${call}`,
         `}`,
+      ].join('\n'),
+    },
+  ];
+}
+
+export function gestureSnippets(): Snippet[] {
+  return [
+    {
+      id: 'fb',
+      label: '@front-brain (TS)',
+      install: 'npm i @front-brain/mediapipe @mediapipe/tasks-vision',
+      code: [
+        `import { createVisionTask, runVideoLoop, GestureController } from '@front-brain/mediapipe';`,
+        ``,
+        `const video = document.querySelector('video');   // playing webcam stream`,
+        `const canvas = document.querySelector('canvas'); // overlay (optional drawing)`,
+        `const cursor = document.querySelector('#cursor');`,
+        ``,
+        `const task = await createVisionTask('gesture', { delegate: 'GPU' });`,
+        `const hands = new GestureController({ mirror: true });`,
+        ``,
+        `const stop = runVideoLoop(video, canvas, task, undefined, (result, t) => {`,
+        `  const { pointer, pinching, events } = hands.update(result, t);`,
+        `  if (pointer) cursor.style.transform = \`translate(\${pointer.x * innerWidth}px, \${pointer.y * innerHeight}px)\`;`,
+        `  for (const e of events) {`,
+        `    if (e.type === 'pinch') document.elementFromPoint(e.x * innerWidth, e.y * innerHeight)?.click();`,
+        `    if (e.type === 'swipe') console.log('swipe', e.direction);          // left | right | up | down`,
+        `    if (e.type === 'gesture') console.log('gesture', e.name);          // Thumb_Up, Victory, Open_Palm…`,
+        `  }`,
+        `});`,
+      ].join('\n'),
+      notes: [PKG_NOTE, 'Mirror the <video> with CSS (transform: scaleX(-1)) for a natural selfie view – GestureController mirrors coordinates to match.'],
+    },
+    {
+      id: 'plain',
+      label: 'Plain MediaPipe',
+      install: 'npm i @mediapipe/tasks-vision',
+      code: [
+        `import { FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';`,
+        ``,
+        `const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');`,
+        `const recognizer = await GestureRecognizer.createFromOptions(fileset, {`,
+        `  baseOptions: { modelAssetPath: ${q(GESTURE_MODEL)}, delegate: 'GPU' },`,
+        `  runningMode: 'VIDEO',`,
+        `  numHands: 1,`,
+        `});`,
+        ``,
+        `function loop() {`,
+        `  const r = recognizer.recognizeForVideo(video, performance.now());`,
+        `  const hand = r.landmarks[0];`,
+        `  if (hand) {`,
+        `    const tip = hand[8], thumb = hand[4];                    // index fingertip, thumb tip`,
+        `    const x = 1 - tip.x, y = tip.y;                           // mirrored 0..1`,
+        `    const pinch = Math.hypot(tip.x - thumb.x, tip.y - thumb.y) < 0.05;`,
+        `    const gesture = r.gestures[0]?.[0]?.categoryName;        // 'Thumb_Up', 'Victory', …`,
+        `  }`,
+        `  requestAnimationFrame(loop);`,
+        `}`,
+        `loop();`,
+      ].join('\n'),
+    },
+  ];
+}
+
+export function moodSnippets(): Snippet[] {
+  return [
+    {
+      id: 'fb',
+      label: '@front-brain (TS)',
+      install: 'npm i @front-brain/mediapipe @mediapipe/tasks-vision',
+      code: [
+        `import { createVisionTask, runVideoLoop, MoodTracker, BlinkDetector, MOOD_EMOJI } from '@front-brain/mediapipe';`,
+        ``,
+        `const task = await createVisionTask('face', { delegate: 'GPU' }); // blendshapes enabled`,
+        `const mood = new MoodTracker();`,
+        `const eyes = new BlinkDetector();`,
+        ``,
+        `runVideoLoop(video, canvas, task, undefined, (result, t) => {`,
+        `  const shapes = result.faceBlendshapes?.[0]?.categories;`,
+        `  if (!shapes) return;`,
+        `  const m = mood.update(shapes);        // { mood: 'happy' | 'surprised' | 'sad' | 'angry' | 'neutral', scores }`,
+        `  const b = eyes.update(shapes, t);     // { blinks, blinksPerMinute, wink, closedMs, … }`,
+        `  label.textContent = MOOD_EMOJI[m.mood];`,
+        `  if (b.blinked) console.log('blink #' + b.blinks);`,
+        `  if (b.wink) console.log('wink', b.wink);`,
+        `  if (b.closedMs > 1500) console.warn('eyes closed – drowsy?');`,
+        `});`,
+      ].join('\n'),
+      notes: [PKG_NOTE, 'Mood is a heuristic over the 52 ARKit-style blendshapes; tune the weights in moodScores() for your use case.'],
+    },
+    {
+      id: 'plain',
+      label: 'Plain MediaPipe',
+      install: 'npm i @mediapipe/tasks-vision',
+      code: [
+        `import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';`,
+        ``,
+        `const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');`,
+        `const face = await FaceLandmarker.createFromOptions(fileset, {`,
+        `  baseOptions: { modelAssetPath: ${q(FACE_MODEL)}, delegate: 'GPU' },`,
+        `  runningMode: 'VIDEO',`,
+        `  outputFaceBlendshapes: true,`,
+        `});`,
+        ``,
+        `let closedSince = 0, blinks = 0;`,
+        `function loop() {`,
+        `  const r = face.detectForVideo(video, performance.now());`,
+        `  const s = Object.fromEntries((r.faceBlendshapes[0]?.categories ?? []).map((c) => [c.categoryName, c.score]));`,
+        `  const closed = s.eyeBlinkLeft > 0.5 && s.eyeBlinkRight > 0.5;`,
+        `  if (closed && !closedSince) closedSince = performance.now();`,
+        `  if (!closed && closedSince) { if (performance.now() - closedSince < 500) blinks++; closedSince = 0; }`,
+        `  const smiling = (s.mouthSmileLeft + s.mouthSmileRight) / 2 > 0.5;`,
+        `  requestAnimationFrame(loop);`,
+        `}`,
+        `loop();`,
       ].join('\n'),
     },
   ];

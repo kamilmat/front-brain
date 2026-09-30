@@ -56,7 +56,8 @@ export function MediaPipeLive() {
 
   useEffect(() => () => task?.close(), [task]);
 
-  const fit = hw ? assessFit({ sizeMB: VISION_TASKS[kind].sizeMB, realtime: true }, hw, delegate === 'GPU' ? 'webgpu' : 'wasm') : null;
+  // MediaPipe's GPU delegate is WebGL, not WebGPU – don't require WebGPU for it.
+  const fit = hw ? assessFit({ sizeMB: VISION_TASKS[kind].sizeMB, realtime: true }, hw, delegate === 'GPU' ? undefined : 'wasm') : null;
   const isCurrent = alive?.kind === kind && alive.delegate === delegate;
 
   const aside = (
