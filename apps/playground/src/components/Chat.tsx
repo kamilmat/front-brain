@@ -8,7 +8,10 @@ export interface ChatMsg {
 export function ChatView({ messages, pending, onSend, busy, onStop, onReset, placeholder }: { messages: ChatMsg[]; pending: string; onSend: (text: string) => void; busy: boolean; onStop?: () => void; onReset: () => void; placeholder?: string }) {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => endRef.current?.scrollIntoView({ block: 'nearest' }), [messages, pending]);
+  // Block body on purpose: newer browsers return a Promise from scrollIntoView, and React would try to call it as a cleanup.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [messages, pending]);
   const send = () => {
     if (!input.trim() || busy) return;
     onSend(input.trim());
