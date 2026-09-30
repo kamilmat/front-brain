@@ -1,5 +1,5 @@
 /** LaMa inpainting (object removal) on raw onnxruntime-web. */
-import { fetchCached, registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
+import { activity, fetchCached, registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
 
 export const LAMA_MODEL_URL = 'https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx';
 export const LAMA_SIZE = 512;
@@ -103,11 +103,13 @@ export async function inpaint(device: Device, image: ImageData, mask: ImageData,
   });
   const set = running.get(session) ?? new Set();
   running.set(session, set.add(run));
+  const endActivity = activity.begin(current?.key ?? 'onnx:Carve/LaMa-ONNX');
   let res: any;
   try {
     res = await run;
   } finally {
     set.delete(run);
+    endActivity();
   }
   const inferMs = performance.now() - t1;
   const o = res[session.outputNames[0]].data as Float32Array;

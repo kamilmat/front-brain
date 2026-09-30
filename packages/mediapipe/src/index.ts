@@ -8,7 +8,7 @@ import {
   ObjectDetector,
   PoseLandmarker,
 } from '@mediapipe/tasks-vision';
-import { registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
+import { activity, registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
 
 export type VisionKind = 'face' | 'hand' | 'pose' | 'gesture' | 'object' | 'selfie';
 
@@ -173,6 +173,7 @@ export function runVideoLoop(
     if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
     const now = performance.now();
     const result = task.detect(video, now);
+    activity.record(task.key, now, performance.now());
     onResult?.(result, now);
     summary = task.draw(ctx, result);
     frames++;
