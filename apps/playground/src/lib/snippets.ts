@@ -534,3 +534,99 @@ export function moodSnippets(): Snippet[] {
     },
   ];
 }
+
+export function voiceSnippets(engine: 'webspeech' | 'whisper' | 'vosk', lang: string): Snippet[] {
+  const create =
+    engine === 'webspeech'
+      ? [`const rec = createWebSpeechRecognizer({ lang: ${q(lang)}, onTranscript });`]
+      : engine === 'whisper'
+        ? [
+            `const rec = createWhisperRecognizer({`,
+            `  spec: { task: 'automatic-speech-recognition', model: 'onnx-community/whisper-base', device: 'webgpu' },`,
+            `  language: ${q(lang.startsWith('pl') ? 'polish' : 'english')},`,
+            `  onTranscript,`,
+            `});`,
+          ]
+        : [
+            `const rec = createVoskRecognizer({`,
+            `  modelUrl: '/models/${lang.startsWith('pl') ? 'vosk-model-small-pl-0.22' : 'vosk-model-small-en-us-0.15'}.tar.gz', // host it yourself (same origin / CORS)`,
+            `  grammar: ['next', 'back', 'stop'], // optional: command-only mode`,
+            `  onTranscript,`,
+            `});`,
+          ];
+  return [
+    {
+      id: 'fb',
+      label: '@front-brain (TS)',
+      install: `npm i @front-brain/speech${engine === 'whisper' ? ' @front-brain/transformers @huggingface/transformers' : engine === 'vosk' ? ' vosk-browser' : ''}`,
+      code: [
+        `import { ${engine === 'webspeech' ? 'createWebSpeechRecognizer' : engine === 'whisper' ? 'createWhisperRecognizer' : 'createVoskRecognizer'}, KeywordSpotter } from '@front-brain/speech';`,
+        ``,
+        `const spotter = new KeywordSpotter([`,
+        `  { id: 'next', phrases: ['next', 'następny', 'dalej'] },`,
+        `  { id: 'lights-off', phrases: ['lights off', 'zgaś światło'] },`,
+        `]);`,
+        ``,
+        `function onTranscript({ utteranceId, text, final }) {`,
+        `  console.log(final ? 'final:' : 'interim:', text);`,
+        `  for (const m of spotter.feed(text, utteranceId, final)) {`,
+        `    if (m.id === 'next') nextSlide();`,
+        `    if (m.id === 'lights-off') document.body.classList.add('dark');`,
+        `  }`,
+        `}`,
+        ``,
+        ...create,
+        `await rec.start();   // asks for the microphone`,
+        `// …`,
+        `await rec.stop();`,
+      ].join('\n'),
+      notes: [PKG_NOTE, ...(engine === 'webspeech' ? ['Chrome/Edge usually process Web Speech audio in the cloud; use Whisper or Vosk for fully on-device recognition.'] : [])],
+    },
+    {
+      id: 'plain',
+      label: engine === 'webspeech' ? 'Plain Web Speech API' : engine === 'whisper' ? 'Plain Transformers.js' : 'Plain vosk-browser',
+      install: engine === 'webspeech' ? '# no install – built into Chrome, Edge, Safari' : engine === 'whisper' ? 'npm i @huggingface/transformers' : 'npm i vosk-browser',
+      code:
+        engine === 'webspeech'
+          ? [
+              `const SR = window.SpeechRecognition || window.webkitSpeechRecognition;`,
+              `const rec = new SR();`,
+              `rec.lang = ${q(lang)};`,
+              `rec.continuous = true;`,
+              `rec.interimResults = true;`,
+              `rec.onresult = (e) => {`,
+              `  for (let i = e.resultIndex; i < e.results.length; i++) {`,
+              `    const text = e.results[i][0].transcript.toLowerCase();`,
+              `    if (text.includes('next')) nextSlide();`,
+              `  }`,
+              `};`,
+              `rec.onend = () => rec.start(); // keep listening`,
+              `rec.start();`,
+            ].join('\n')
+          : engine === 'whisper'
+            ? [
+                `import { pipeline } from '@huggingface/transformers';`,
+                ``,
+                `const asr = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-base', { device: 'webgpu' });`,
+                `// Record a phrase (e.g. MediaRecorder or an AudioWorklet at 16 kHz), then:`,
+                `const { text } = await asr(float32Audio16k, { language: ${q(lang.startsWith('pl') ? 'polish' : 'english')}, task: 'transcribe' });`,
+                `if (/next|dalej/i.test(text)) nextSlide();`,
+              ].join('\n')
+            : [
+                `import { createModel } from 'vosk-browser';`,
+                ``,
+                `const model = await createModel('/models/${lang.startsWith('pl') ? 'vosk-model-small-pl-0.22' : 'vosk-model-small-en-us-0.15'}.tar.gz');`,
+                `const rec = new model.KaldiRecognizer(16000);`,
+                `rec.on('partialresult', (m) => console.log(m.result.partial));`,
+                `rec.on('result', (m) => console.log('final', m.result.text));`,
+                ``,
+                `const stream = await navigator.mediaDevices.getUserMedia({ audio: true });`,
+                `const ctx = new AudioContext({ sampleRate: 16000 });`,
+                `const node = ctx.createScriptProcessor(4096, 1, 1);`,
+                `node.onaudioprocess = (e) => rec.acceptWaveform(e.inputBuffer);`,
+                `ctx.createMediaStreamSource(stream).connect(node);`,
+                `node.connect(ctx.destination);`,
+              ].join('\n'),
+    },
+  ];
+}

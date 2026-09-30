@@ -6,3 +6,5 @@ export * from './registry.js';
 export * from './cache.js';
 export * from './runlog.js';
 export * from './audio.js';
+export * from './activity.js';
+export * from './perf.js';

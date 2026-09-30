@@ -111,6 +111,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       });
     }
     const key = specKey(msg.spec);
+    post({ id, type: 'infer-start' });
     const running: Promise<unknown> = pipe(...args, options);
     const set = inflight.get(key) ?? new Set();
     inflight.set(key, set.add(running));

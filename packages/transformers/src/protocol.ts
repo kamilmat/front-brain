@@ -28,6 +28,8 @@ export interface RunStats {
 export type WorkerResponse =
   | { id: number; type: 'progress'; data: any }
   | { id: number; type: 'token'; data: string }
+  /** Inference (not loading) started – used for live activity tracking. */
+  | { id: number; type: 'infer-start' }
   | { id: number; type: 'loaded'; data: { loadMs: number; bytes: number; cached: boolean } }
   | { id: number; type: 'result'; data: any; stats: RunStats }
   | { id: number; type: 'done' }

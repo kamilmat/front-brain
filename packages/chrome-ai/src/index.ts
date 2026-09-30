@@ -1,4 +1,4 @@
-import { registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
+import { activity, registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
 
 /** Chrome built-in AI APIs (Gemini Nano on-device). All are optional globals. */
 export const CHROME_AI_APIS = ['LanguageModel', 'Summarizer', 'Translator', 'LanguageDetector', 'Writer', 'Rewriter', 'Proofreader'] as const;
@@ -52,6 +52,20 @@ export async function createSession<T = any>(name: ChromeAIApi, options: Record<
     const destroy = session.destroy?.bind(session);
     let destroyed = false;
     session.isDestroyed = () => destroyed;
+    session.registryKey = key;
+    // Track compute time of the one-shot APIs for live activity monitoring.
+    for (const m of ['prompt', 'summarize', 'translate', 'detect', 'write', 'rewrite', 'proofread']) {
+      const fn = session[m];
+      if (typeof fn !== 'function') continue;
+      session[m] = async (...a: unknown[]) => {
+        const end = activity.begin(key);
+        try {
+          return await fn.apply(session, a);
+        } finally {
+          end();
+        }
+      };
+    }
     session.destroy = () => {
       if (destroyed) return;
       destroyed = true;
@@ -72,9 +86,14 @@ export const isSessionAlive = (session: any) => !!session && !session.isDestroye
 /** Stream a prompt through a LanguageModel session, calling onChunk with the growing text. */
 export async function promptStreaming(session: any, input: string, onChunk: (full: string) => void): Promise<string> {
   let acc = '';
-  for await (const chunk of session.promptStreaming(input)) {
-    acc += chunk;
-    onChunk(acc);
+  const end = session.registryKey ? activity.begin(session.registryKey) : () => {};
+  try {
+    for await (const chunk of session.promptStreaming(input)) {
+      acc += chunk;
+      onChunk(acc);
+    }
+  } finally {
+    end();
   }
   return acc;
 }

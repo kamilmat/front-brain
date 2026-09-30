@@ -1,5 +1,5 @@
 import type { ChatCompletionMessageParam, MLCEngineInterface } from '@mlc-ai/web-llm';
-import { registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
+import { activity, registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
 
 export interface WebLLMModelInfo {
   id: string;
@@ -107,6 +107,8 @@ export class WebLLMRuntime {
     if (!this.enginePromise || !model) throw new Error('No model loaded');
     const engine = await this.enginePromise;
     const t0 = performance.now();
+    const endActivity = activity.begin(this.key(model));
+    try {
     const chunks = await engine.chat.completions.create({
       messages: messages as ChatCompletionMessageParam[],
       stream: true,
@@ -129,6 +131,9 @@ export class WebLLMRuntime {
     }
     this.registry.patch(this.key(model), { lastUsedAt: Date.now() });
     return { ...res, text, totalMs: performance.now() - t0 };
+    } finally {
+      endActivity();
+    }
   }
 
   interrupt() {

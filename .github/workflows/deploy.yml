@@ -28,6 +28,21 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+      # Vosk models are served from the site itself (alphacephei.com doesn't send CORS headers).
+      - name: Fetch Vosk speech models
+        run: |
+          mkdir -p apps/playground/dist/models /tmp/vosk
+          for m in vosk-model-small-pl-0.22 vosk-model-small-en-us-0.15; do
+            # Non-fatal: the rest of the site deploys even if a model download fails.
+            if curl -fsSL --retry 3 -o "/tmp/vosk/$m.zip" "https://alphacephei.com/vosk/models/$m.zip" \
+              && unzip -q "/tmp/vosk/$m.zip" -d /tmp/vosk \
+              && tar -czf "apps/playground/dist/models/$m.tar.gz" -C /tmp/vosk "$m"; then
+              echo "packed $m"
+            else
+              echo "::warning::Could not fetch Vosk model $m"
+            fi
+          done
+          ls -lh apps/playground/dist/models
       # Fails with "Not Found" until Pages is enabled: Settings → Pages → Source: GitHub Actions
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

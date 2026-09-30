@@ -36,6 +36,7 @@ const video = () => import('./video');
 const lab = () => import('./lab');
 const inpaint = () => import('./inpaint');
 const interactive = () => import('./interactive');
+const voice = () => import('./voice');
 const pick = <M,>(loader: () => Promise<M>, name: keyof M) => lazy(async () => ({ default: (await loader())[name] as ComponentType }));
 
 export const DEMOS: DemoDef[] = [
@@ -68,6 +69,7 @@ export const DEMOS: DemoDef[] = [
   { id: 'mood', section: 'video', title: 'Mood & blink detector', lib: 'MediaPipe', tasks: ['mp:face'], mobile: true, desc: 'Live mood from facial expression, blink counter, winks and a drowsiness alarm.', component: pick(interactive, 'MoodBlink') },
   { id: 'frames', section: 'video', title: 'Any vision model on video', lib: 'Transformers.js', desc: 'Frame-by-frame detection, depth, classification or captioning.', component: pick(video, 'TjsVideo') },
 
+  { id: 'voice', section: 'audio', title: 'Voice commands', lib: 'Web Speech · Whisper · Vosk', tasks: ['speech-commands'], mobile: true, desc: 'Live speech recognition with keyword actions – compare three engines (cloud vs on-device).', component: pick(voice, 'VoiceCommands') },
   { id: 'asr', section: 'audio', title: 'Speech to text', lib: 'Transformers.js', tasks: ['automatic-speech-recognition'], mobile: true, desc: 'Whisper (tiny → large-v3-turbo), Moonshine. Microphone or file.', component: pick(audio, 'ASR') },
   { id: 'tts', section: 'audio', title: 'Text to speech', lib: 'Transformers.js', tasks: ['text-to-speech'], mobile: true, desc: 'MMS-TTS, SpeechT5.', component: pick(audio, 'TTS') },
   { id: 'sounds', section: 'audio', title: 'Sound classification', lib: 'Transformers.js', tasks: ['audio-classification'], desc: 'What sound is it? (AudioSet, 527 classes).', component: pick(audio, 'AudioClassify') },

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { LoadedDock } from './components/LoadedDock';
+import { PerfMonitorButton } from './components/PerfMonitor';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DEMOS, SECTIONS } from './demos/registry';
 import { DevicePage } from './pages/Device';
@@ -31,7 +32,10 @@ export function App() {
             </a>
           ))}
         </nav>
-        <LoadedDock />
+        <div className="row">
+          <PerfMonitorButton />
+          <LoadedDock />
+        </div>
       </header>
       <main>
         <ErrorBoundary key={route.section + '/' + (route.page ?? '')}>

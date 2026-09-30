@@ -1,4 +1,4 @@
-import { registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
+import { activity, registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
 import { specKey, type PipelineSpec, type RunStats, type WorkerRequest, type WorkerResponse } from './protocol.js';
 
 export interface RuntimeOptions {
@@ -14,7 +14,7 @@ export interface CallHandlers {
   onToken?: (text: string) => void;
 }
 
-type Pending = { resolve: (v: any) => void; reject: (e: Error) => void; h: CallHandlers; key?: string; /** This call created the registry entry (i.e. it is the load). */ owner?: boolean };
+type Pending = { resolve: (v: any) => void; reject: (e: Error) => void; h: CallHandlers; key?: string; /** This call created the registry entry (i.e. it is the load). */ owner?: boolean; /** Ends the activity span of a running inference. */ endActivity?: () => void };
 
 /**
  * Runs Transformers.js pipelines in a dedicated Web Worker.
@@ -129,11 +129,15 @@ export class TransformersRuntime {
         case 'token':
           p.h.onToken?.(msg.data);
           break;
+        case 'infer-start':
+          if (p.key) p.endActivity = activity.begin(p.key);
+          break;
         case 'loaded':
           if (p.key) this.clearFiles(files, p.key);
           if (p.key) this.registry.patch(p.key, { status: 'ready', progress: 1, bytes: msg.data.bytes, loadMs: msg.data.loadMs, loadedAt: Date.now(), error: undefined });
           break;
         case 'result':
+          p.endActivity?.();
           this.pending.delete(msg.id);
           if (p.key) this.registry.patch(p.key, { status: 'ready' });
           p.resolve({ result: msg.data, stats: msg.stats });
@@ -144,6 +148,7 @@ export class TransformersRuntime {
           p.resolve(undefined);
           break;
         case 'error':
+          p.endActivity?.();
           this.pending.delete(msg.id);
           // A failed load leaves nothing in memory; a failed run keeps the loaded pipeline.
           // Only the call that created the entry may remove it (a newer load may own it now).
@@ -156,7 +161,10 @@ export class TransformersRuntime {
     w.onerror = (e) => {
       e.preventDefault();
       const err = new Error(e.message || 'Worker crashed (possibly out of memory)');
-      for (const p of this.pending.values()) p.reject(err);
+      for (const p of this.pending.values()) {
+        p.endActivity?.();
+        p.reject(err);
+      }
       this.pending.clear();
       // An uncaught worker error doesn't stop the worker – kill it so its models free their memory.
       w.terminate();
