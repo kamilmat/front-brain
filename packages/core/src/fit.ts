@@ -1,4 +1,4 @@
-import type { HardwareProfile } from './hardware';
+import type { HardwareProfile } from './hardware.js';
 
 export interface ModelRequirements {
   /** Download size of weights in MB. */

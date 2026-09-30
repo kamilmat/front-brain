@@ -4,11 +4,13 @@
  * TransformersRuntime spawn it automatically.
  */
 import { pipeline, env, TextStreamer, RawImage } from '@huggingface/transformers';
-import { specKey, type WorkerRequest, type WorkerResponse } from './protocol';
+import { specKey, type WorkerRequest, type WorkerResponse } from './protocol.js';
 
 env.allowLocalModels = false;
 
 const pipes = new Map<string, Promise<any>>();
+/** Inferences currently running per pipeline key – unload waits for them before disposing. */
+const inflight = new Map<string, Set<Promise<unknown>>>();
 const post = (m: WorkerResponse, transfer: Transferable[] = []) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(m, transfer);
 
 /** Convert library objects into structured-clone friendly shapes. */
@@ -51,13 +53,15 @@ async function ensure(id: number, spec: WorkerRequest & { type: 'load' | 'run' }
       }),
     );
   }
+  const promise = pipes.get(key)!;
   try {
-    const pipe = await pipes.get(key)!;
+    const pipe = await promise;
     const loadMs = cached ? 0 : performance.now() - t0;
     if (!cached) post({ id, type: 'loaded', data: { loadMs, bytes: Object.values(bytes).reduce((a, b) => a + b, 0), cached } });
     return { pipe, loadMs };
   } catch (err) {
-    pipes.delete(key);
+    // Only forget our own promise – a newer load of the same key may have replaced it.
+    if (pipes.get(key) === promise) pipes.delete(key);
     throw err;
   }
 }
@@ -65,7 +69,10 @@ async function ensure(id: number, spec: WorkerRequest & { type: 'load' | 'run' }
 async function dispose(key: string) {
   const p = pipes.get(key);
   pipes.delete(key);
-  (await p?.catch(() => null))?.dispose?.();
+  const pipe = await p?.catch(() => null);
+  // Never release sessions under a running inference.
+  await Promise.allSettled([...(inflight.get(key) ?? [])]);
+  await pipe?.dispose?.();
 }
 
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
@@ -103,7 +110,16 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         },
       });
     }
-    const out = await pipe(...args, options);
+    const key = specKey(msg.spec);
+    const running: Promise<unknown> = pipe(...args, options);
+    const set = inflight.get(key) ?? new Set();
+    inflight.set(key, set.add(running));
+    let out: any;
+    try {
+      out = await running;
+    } finally {
+      set.delete(running);
+    }
     const inferMs = performance.now() - t1;
     const transfer: Transferable[] = [];
     post({ id, type: 'result', data: serialize(out, transfer), stats: { loadMs, inferMs, tokens, firstTokenMs } }, transfer);

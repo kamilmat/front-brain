@@ -1,4 +1,4 @@
-import { hasWebGPU } from './env';
+import { hasWebGPU } from './env.js';
 
 export type Tier = 'low' | 'mid' | 'high';
 

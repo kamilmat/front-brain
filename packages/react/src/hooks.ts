@@ -45,10 +45,15 @@ export function useRuns() {
 export function useCachedModels() {
   const [models, setModels] = useState<CachedModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       setModels(await listCachedModels());
+    } catch (e) {
+      // e.g. SecurityError when storage is blocked
+      setError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -63,5 +68,5 @@ export function useCachedModels() {
     },
     [refresh],
   );
-  return { models, loading, refresh, remove };
+  return { models, loading, error, refresh, remove };
 }

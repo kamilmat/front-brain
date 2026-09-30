@@ -3,6 +3,8 @@ import { assessFit, formatBytes, formatMB } from '@front-brain/core';
 import { FIT_ICON } from '@front-brain/core';
 import { requirementsOf, type Choice, type Demo } from '../lib/useDemo';
 import { Card, FitCard, Progress, Segmented } from './ui';
+import { UseInProject } from './UseInProject';
+import { transformersSnippets } from '../lib/snippets';
 
 export const DTYPES = ['', 'fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'q4f16', 'bnb4'];
 
@@ -99,6 +101,11 @@ export function ModelPanel({ d }: { d: Demo }) {
         </button>
       </div>
       <Progress files={pipe.files} />
+      <UseInProject
+        title={choice.model || 'this model'}
+        disabled={!choice.model}
+        getSnippets={() => transformersSnippets({ task: d.task, model: choice.model, device: choice.device, dtype: choice.dtype || undefined })}
+      />
     </Card>
   );
 }

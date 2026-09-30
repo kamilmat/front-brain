@@ -227,3 +227,18 @@ td.bad { color: var(--danger); }
   .grid2 { grid-template-columns: 1fr; }
   .page-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- use in your project */
+.use-btn { font-family: ui-monospace, monospace; font-size: 0.85rem; border-style: dashed; }
+.code-dialog { width: min(860px, 94vw); max-height: 88vh; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); box-shadow: 0 20px 60px rgb(0 0 0 / 0.35); }
+.code-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.code-dialog-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.code-block { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.code-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: var(--panel-2); font-size: 0.8rem; color: var(--muted); }
+.code-block pre { margin: 0; padding: 12px; overflow-x: auto; background: var(--bg); font-size: 0.82rem; line-height: 1.5; }
+.copy-btn { padding: 3px 10px; font-size: 0.8rem; min-height: 0 !important; }
+.notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 800px) {
+  .code-dialog { width: 100vw; max-width: 100vw; max-height: 100dvh; height: 100dvh; margin: 0; border-radius: 0; }
+}
+.code-block pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; }

@@ -39,7 +39,7 @@ export function App() {
           <SectionPage sectionId={section.id} page={route.page} />
         ) : route.section === 'models' ? (
           <Page title="📦 Models" desc="What's in memory, what's downloaded, and what's available – with a fit estimate for this device.">
-            <ModelsPage tab={(route.page as any) ?? 'loaded'} setTab={(t) => (location.hash = href('models', t))} />
+            <ModelsPage tab={(['loaded', 'downloaded', 'catalog'].includes(route.page ?? '') ? route.page : 'loaded') as any} setTab={(t) => (location.hash = href('models', t))} />
           </Page>
         ) : route.section === 'device' ? (
           <Page title="🖥️ Device" desc="What this browser and hardware can do.">
