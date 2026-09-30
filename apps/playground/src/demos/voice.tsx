@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { formatBytes, logRun, registry } from '@front-brain/core';
-import { useLoadedModels } from '@front-brain/react';
+import { assessFit, formatBytes, logRun, registry } from '@front-brain/core';
+import { useHardware, useLoadedModels } from '@front-brain/react';
 import {
   createVoskRecognizer,
   createWebSpeechRecognizer,
@@ -14,20 +14,20 @@ import {
   type TranscriptEvent,
   type VoiceCommand,
 } from '@front-brain/speech';
-import { Card, ErrorBox, Segmented } from '../components/ui';
+import { Card, ErrorBox, FitCard, Segmented } from '../components/ui';
 import { DemoGrid } from '../components/DemoShell';
 import { ModelPanel } from '../components/ModelPanel';
 import { UseInProject } from '../components/UseInProject';
 import { useDemo } from '../lib/useDemo';
 import { setSfxEnabled, sfx, sfxEnabled } from '../lib/sfx';
 import { voiceSnippets } from '../lib/snippets';
+import { useVoskModels, voskModelUrl } from '../lib/voskModels';
 
 type Lang = 'pl' | 'en';
-const LANGS: Record<Lang, { label: string; bcp47: string; whisper: string; vosk: string; voskSize: string }> = {
-  pl: { label: 'Polski', bcp47: 'pl-PL', whisper: 'polish', vosk: 'vosk-model-small-pl-0.22', voskSize: '~50 MB' },
-  en: { label: 'English', bcp47: 'en-US', whisper: 'english', vosk: 'vosk-model-small-en-us-0.15', voskSize: '~40 MB' },
+const LANGS: Record<Lang, { label: string; bcp47: string; whisper: string; vosk: string }> = {
+  pl: { label: 'Polski', bcp47: 'pl-PL', whisper: 'polish', vosk: 'vosk-model-small-pl-0.22' },
+  en: { label: 'English', bcp47: 'en-US', whisper: 'english', vosk: 'vosk-model-small-en-us-0.15' },
 };
-const voskUrl = (lang: Lang) => `${import.meta.env.BASE_URL}models/${LANGS[lang].vosk}.tar.gz`;
 
 interface Cmd extends VoiceCommand {
   label: string;
@@ -68,7 +68,12 @@ interface Line {
 }
 
 export function VoiceCommands() {
-  const [engine, setEngine] = useState<EngineId>(isWebSpeechSupported() ? 'webspeech' : 'whisper');
+  // Vosk is the default: fully on-device, streaming and the most accurate for commands.
+  const [engine, setEngine] = useState<EngineId>('vosk');
+  const [voskModel, setVoskModel] = useState(LANGS.pl.vosk);
+  const [customVosk, setCustomVosk] = useState('');
+  const vosk = useVoskModels();
+  const hw = useHardware();
   const [lang, setLang] = useState<Lang>('pl');
   const [onDevice, setOnDevice] = useState(false);
   const [grammar, setGrammar] = useState(true);
@@ -93,7 +98,10 @@ export function VoiceCommands() {
   const spotter = useRef(new KeywordSpotter(commands));
   spotter.current.commands = commands;
   const models = useLoadedModels();
-  const voskEntry = models.find((m) => m.runtime === 'vosk' && m.model === LANGS[lang].vosk);
+  const voskUrl = customVosk.trim() || voskModelUrl(voskModel);
+  const voskName = voskUrl.split('/').pop()!.replace(/\.tar\.gz$/, '');
+  const voskEntry = models.find((m) => m.runtime === 'vosk' && m.model === voskName);
+  const voskMeta = vosk.models.find((m) => m.id === voskModel);
 
   useEffect(() => {
     try {
@@ -107,7 +115,18 @@ export function VoiceCommands() {
   useEffect(() => () => void recRef.current?.stop(), []);
   useEffect(() => {
     void stop();
-  }, [engine, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [engine, lang, voskUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The PL/EN switch also picks a matching Vosk model – the default one if deployed, else any model of
+  // that language, else the first available. Also keeps the selection valid when the manifest arrives.
+  useEffect(() => {
+    const ids = vosk.models.map((m) => m.id);
+    const pick = () =>
+      (ids.includes(LANGS[lang].vosk) && LANGS[lang].vosk) ||
+      vosk.models.find((m) => m.lang.startsWith(lang === 'pl' ? 'Polish' : 'English'))?.id ||
+      ids[0] ||
+      LANGS[lang].vosk;
+    setVoskModel(pick());
+  }, [lang, vosk.models.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mic level meter.
   useEffect(() => {
@@ -175,7 +194,7 @@ export function VoiceCommands() {
       const c = (spotter.current.commands as Cmd[]).find((x) => x.id === m.id);
       if (c) act(c);
     }
-    if (e.final) logRun({ demo: 'Voice commands', lib: engine, model: engine === 'whisper' ? whisper.choice.model : engine === 'vosk' ? LANGS[lang].vosk : `Web Speech (${LANGS[lang].bcp47})`, device: engine === 'whisper' ? whisper.choice.device : engine === 'vosk' ? 'wasm' : onDevice ? 'on-device?' : 'cloud', inferMs: e.latencyMs, note: e.text.slice(0, 40) });
+    if (e.final) logRun({ demo: 'Voice commands', lib: engine, model: engine === 'whisper' ? whisper.choice.model : engine === 'vosk' ? voskName : `Web Speech (${LANGS[lang].bcp47})`, device: engine === 'whisper' ? whisper.choice.device : engine === 'vosk' ? 'wasm' : onDevice ? 'on-device?' : 'cloud', inferMs: e.latencyMs, note: e.text.slice(0, 40) });
   };
 
   async function start() {
@@ -191,7 +210,7 @@ export function VoiceCommands() {
                 spec: { task: 'automatic-speech-recognition', model: whisper.choice.model, device: whisper.choice.device, dtype: whisper.choice.dtype || undefined },
                 language: whisper.choice.model.includes('whisper') ? LANGS[lang].whisper : undefined,
               })
-            : createVoskRecognizer({ ...callbacks, modelUrl: voskUrl(lang), grammar: grammar ? commandWords(commands) : undefined });
+            : createVoskRecognizer({ ...callbacks, modelUrl: voskUrl, grammar: grammar ? commandWords(commands) : undefined });
       recRef.current = rec;
       await rec.start();
       if (engine === 'webspeech') setState('listening');
@@ -199,7 +218,7 @@ export function VoiceCommands() {
       recRef.current = null;
       setState('idle');
       const msg = (e as Error).message || String(e);
-      setError(engine === 'vosk' && /fetch|404|load/i.test(msg) ? `${msg}\nThe Vosk model is served with the deployed site (${voskUrl(lang)}); it isn't available in local dev.` : msg);
+      setError(engine === 'vosk' && /fetch|404|load/i.test(msg) ? `${msg}\nCould not load ${voskUrl}. Deployed models are served with the site (not in local dev); custom URLs must allow CORS.` : msg);
     }
   }
 
@@ -244,13 +263,29 @@ export function VoiceCommands() {
           </>
         ) : (
           <>
-            <p className="hint">
-              Vosk (Kaldi in WebAssembly): streaming, fully on-device. Model <code>{LANGS[lang].vosk}</code> ({LANGS[lang].voskSize}), served with this site.
-            </p>
+            <p className="hint">Vosk (Kaldi in WebAssembly): streaming, fully on-device. Models are served with this site.</p>
+            <label>
+              Model {vosk.manifestFound ? `(${vosk.models.length} deployed)` : ''}
+              <select value={voskModel} onChange={(e) => setVoskModel(e.target.value)} disabled={listening || !!customVosk.trim()}>
+                {vosk.models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.flag} {m.lang} · {m.sizeMB} MB{m.note ? ` · ${m.note}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              …or a custom model URL (.tar.gz, CORS-enabled)
+              <input value={customVosk} placeholder="https://…/vosk-model-xx.tar.gz" onChange={(e) => setCustomVosk(e.target.value)} disabled={listening} />
+            </label>
+            {!customVosk.trim() && voskMeta && hw && <FitCard fit={assessFit({ sizeMB: voskMeta.sizeMB * 1.5 }, hw, 'wasm')} />}
             <label className="check">
               <input type="checkbox" checked={grammar} onChange={(e) => setGrammar(e.target.checked)} disabled={listening} /> command mode – only listen for the command words
               (much more accurate)
             </label>
+            {voskMeta && !/Polish|English/.test(voskMeta.lang) && (
+              <p className="hint">Tip: add phrases in {voskMeta.lang} to the commands below (and turn off command mode to see free transcription).</p>
+            )}
             <div className="load-state">
               <span className={`dot ${voskEntry?.status ?? 'idle'}`} />
               <span>{voskEntry ? `${voskEntry.status}${voskEntry.bytes ? ' · ' + formatBytes(voskEntry.bytes) : ''}` : 'Not loaded – loads on Start'}</span>
@@ -260,7 +295,7 @@ export function VoiceCommands() {
             </button>
           </>
         )}
-        <UseInProject title="voice commands" getSnippets={() => voiceSnippets(engine, lang === 'pl' ? 'pl-PL' : 'en-US')} />
+        <UseInProject title="voice commands" getSnippets={() => voiceSnippets(engine, lang === 'pl' ? 'pl-PL' : 'en-US', engine === 'vosk' ? voskName : undefined)} />
       </Card>
     );
 
@@ -278,6 +313,7 @@ export function VoiceCommands() {
             ]}
           />
           <Segmented value={lang} onChange={setLang} options={[{ id: 'pl', label: '🇵🇱 PL' }, { id: 'en', label: '🇬🇧 EN' }]} />
+          {engine === 'vosk' && <span className="hint">Vosk language = selected model</span>}
           <button
             className={sound ? 'chip active' : 'chip'}
             onClick={() => {
