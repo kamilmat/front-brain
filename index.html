@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Playground for testing AI models that run entirely in the browser: text, LLM chat, vision, video, audio." />
+    <title>Front Brain – in-browser AI lab</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>" />
+    <script>
+      // Optional cross-origin isolation (enables multi-threaded WASM on hosts without COOP/COEP headers, e.g. GitHub Pages).
+      // Toggled from the "Environment" page.
+      (function () {
+        var on = false;
+        try { on = localStorage.getItem('fb:coi') === '1'; } catch (e) {}
+        window.coi = {
+          shouldRegister: function () { return on; },
+          shouldDeregister: function () { return !on; },
+          coepCredentialless: function () { return true; },
+          doReload: function () { window.location.reload(); },
+          quiet: true,
+        };
+      })();
+    </script>
+    <script src="./coi-serviceworker.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
