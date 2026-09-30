@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { DEMOS, SECTIONS } from '../demos/registry';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { href } from '../router';
 
 export function SectionPage({ sectionId, page }: { sectionId: string; page?: string }) {
@@ -31,9 +32,11 @@ export function SectionPage({ sectionId, page }: { sectionId: string; page?: str
                 {demo.desc} <span className="badge">{demo.lib}</span>
               </p>
             </div>
-            <Suspense fallback={<p className="hint">Loading demo…</p>}>
-              <demo.component key={demo.id} />
-            </Suspense>
+            <ErrorBoundary key={demo.id} label={demo.title}>
+              <Suspense fallback={<p className="hint">Loading demo…</p>}>
+                <demo.component />
+              </Suspense>
+            </ErrorBoundary>
           </>
         ) : (
           <>

@@ -2,7 +2,7 @@ import { findModel } from '@front-brain/catalog';
 import { assessFit, formatBytes, formatMB } from '@front-brain/core';
 import { FIT_ICON } from '@front-brain/core';
 import { requirementsOf, type Choice, type Demo } from '../lib/useDemo';
-import { Card, ErrorBox, FitCard, Progress, Segmented } from './ui';
+import { Card, FitCard, Progress, Segmented } from './ui';
 
 export const DTYPES = ['', 'fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'q4f16', 'bnb4'];
 
@@ -99,7 +99,6 @@ export function ModelPanel({ d }: { d: Demo }) {
         </button>
       </div>
       <Progress files={pipe.files} />
-      {!pipe.busy && <ErrorBox error={pipe.error} />}
     </Card>
   );
 }

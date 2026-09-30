@@ -24,7 +24,11 @@ export function useDemo(label: string, task: string) {
   useEffect(() => {
     if (!hw || picked.current) return;
     const req = requirementsOf(findModel(choice.model));
-    if (req) setChoice((c) => ({ ...c, device: assessFit(req, hw).suggestedDevice }));
+    if (!req) return;
+    const device = assessFit(req, hw).suggestedDevice;
+    // fp16 weights need WebGPU shader-f16; otherwise start from plain 4-bit (user can still change it).
+    const f16ok = device === 'webgpu' && hw.f16;
+    setChoice((c) => ({ ...c, device, dtype: /f16/.test(c.dtype) && !f16ok ? 'q4' : c.dtype }));
   }, [hw]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (c: Choice) => {

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Card, ScoreBars } from '../components/ui';
 import { DemoShell } from '../components/DemoShell';
 import { useDemo } from '../lib/useDemo';
+import { flat } from '../lib/result';
 
-const flat = (r: any) => [r].flat(2);
 
 export function Sentiment() {
   const d = useDemo('Sentiment', 'text-classification');
@@ -129,7 +129,7 @@ export function Summarize() {
       d={d}
       onRun={async () => {
         const r = await d.pipe.run([d.choice.model.includes('t5') ? 'summarize: ' + text : text], { max_new_tokens: 120 }, { stream: true });
-        if (r) setOut(flat(r)[0].summary_text);
+        if (r) setOut(flat(r)?.[0]?.summary_text ?? null);
       }}
       output={(out || d.pipe.streamText) && <Card title="Summary"><p>{d.pipe.busy ? d.pipe.streamText : out}</p></Card>}
     >
@@ -159,7 +159,7 @@ export function Translate() {
       d={d}
       onRun={async () => {
         const r = await d.pipe.run([text], { src_lang: NLLB_LANGS[src], tgt_lang: NLLB_LANGS[tgt], max_new_tokens: 256 }, { stream: true });
-        if (r) setOut(flat(r)[0].translation_text);
+        if (r) setOut(flat(r)?.[0]?.translation_text ?? null);
       }}
       output={(out || d.pipe.streamText) && <Card title="Translation"><p className="big">{d.pipe.busy ? d.pipe.streamText : out}</p></Card>}
     >
