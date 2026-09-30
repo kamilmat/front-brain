@@ -81,7 +81,8 @@ export function WebLLMChat() {
   async function load() {
     setError(null);
     try {
-      const { loadMs } = await rt.load(model, (p) => setProgress(`${Math.round(p.progress * 100)}% · ${p.text}`), info?.vramMB);
+      const { loadMs, cancelled } = await rt.load(model, (p) => setProgress(`${Math.round(p.progress * 100)}% · ${p.text}`), info?.vramMB);
+      if (cancelled) return false;
       logRun({ demo: 'LLM chat (WebLLM)', lib: 'webllm', model, device: 'webgpu', loadMs, note: 'load' });
       return true;
     } catch (e) {

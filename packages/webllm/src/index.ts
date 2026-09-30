@@ -65,39 +65,40 @@ export class WebLLMRuntime {
   load(model: string, onProgress?: (p: { progress: number; text: string }) => void, vramMB?: number) {
     const gen = ++this.generation;
     const key = this.key(model);
-    if (this.model && this.model !== model) this.registry.remove(this.key(this.model));
+    // Only one model at a time: drop every other WebLLM entry (ready or still loading) right away.
+    for (const m of this.registry.list()) if (m.runtime === 'webllm' && m.key !== key) this.registry.remove(m.key);
     this.registry.upsert({ key, runtime: 'webllm', model, task: 'chat', device: 'webgpu', status: 'loading', progress: 0 }, () => this.unload());
     return this.enqueue(async () => {
       const initProgressCallback = (p: { progress: number; text: string }) => {
-        this.registry.patch(key, { progress: p.progress });
+        if (gen === this.generation) this.registry.patch(key, { progress: p.progress });
         onProgress?.(p);
       };
       const t0 = performance.now();
       // The engine drops the previous model as soon as reload starts.
       this.model = null;
       try {
+        // One engine (and one worker) for the runtime's lifetime; every load is a reload, so a
+        // failed load never leaves an orphaned worker behind.
         if (!this.enginePromise) {
-          const webllm = await import('@mlc-ai/web-llm');
-          this.enginePromise = webllm.CreateWebWorkerMLCEngine(this.createWorker(), model, { initProgressCallback });
+          this.enginePromise = import('@mlc-ai/web-llm').then(({ WebWorkerMLCEngine }) => new WebWorkerMLCEngine(this.createWorker()));
           this.enginePromise.catch(() => (this.enginePromise = null));
-          await this.enginePromise;
-        } else {
-          const engine = await this.enginePromise;
-          engine.setInitProgressCallback(initProgressCallback);
-          await engine.reload(model);
         }
+        const engine = await this.enginePromise;
+        engine.setInitProgressCallback(initProgressCallback);
+        await engine.reload(model);
       } catch (e) {
+        // A stale load's entry was already replaced/removed by the newer load – only the latest cleans up.
         if (gen === this.generation) this.registry.remove(key);
         throw e;
       }
       const loadMs = performance.now() - t0;
       if (gen !== this.generation) {
         // Unloaded or superseded while loading – don't claim this model is ready.
-        return { loadMs };
+        return { loadMs, cancelled: true };
       }
       this.model = model;
       this.registry.patch(key, { status: 'ready', progress: 1, loadMs, loadedAt: Date.now(), bytes: vramMB ? vramMB * 2 ** 20 : undefined });
-      return { loadMs };
+      return { loadMs, cancelled: false };
     });
   }
 
@@ -138,9 +139,9 @@ export class WebLLMRuntime {
     await (await this.enginePromise?.catch(() => null))?.resetChat();
   }
 
+  /** Frees the model. Note: waits for an in-progress download/load to finish first. */
   unload() {
     this.generation++;
-    if (this.model) this.registry.remove(this.key(this.model));
     for (const m of this.registry.list()) if (m.runtime === 'webllm') this.registry.remove(m.key);
     return this.enqueue(async () => {
       this.model = null;
