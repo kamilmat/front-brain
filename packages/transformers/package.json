@@ -1,0 +1,44 @@
+{
+  "name": "@front-brain/transformers",
+  "version": "0.1.0",
+  "description": "Run any Transformers.js pipeline in a Web Worker with explicit load/unload, progress, streaming and timings.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/worker.js"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@front-brain/core": "0.1.0"
+  },
+  "peerDependencies": {
+    "@huggingface/transformers": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamilmat/front-brain.git",
+    "directory": "packages/transformers"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

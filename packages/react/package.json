@@ -1,0 +1,39 @@
+{
+  "name": "@front-brain/react",
+  "version": "0.1.0",
+  "description": "React hooks for @front-brain packages: model registry, hardware, fit assessment, Transformers.js runner, cache.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "dependencies": {
+    "@front-brain/core": "0.1.0",
+    "@front-brain/transformers": "0.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamilmat/front-brain.git",
+    "directory": "packages/react"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

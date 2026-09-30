@@ -1,0 +1,36 @@
+{
+  "name": "@front-brain/chrome-ai",
+  "version": "0.1.0",
+  "description": "Typed helpers for Chrome built-in AI (Gemini Nano): Prompt, Summarizer, Translator, LanguageDetector, Writer, Rewriter.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "dependencies": {
+    "@front-brain/core": "0.1.0"
+  },
+  "peerDependencies": {},
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamilmat/front-brain.git",
+    "directory": "packages/chrome-ai"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@front-brain/playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p . && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@front-brain/catalog": "0.1.0",
+    "@front-brain/chrome-ai": "0.1.0",
+    "@front-brain/core": "0.1.0",
+    "@front-brain/inpaint": "0.1.0",
+    "@front-brain/mediapipe": "0.1.0",
+    "@front-brain/react": "0.1.0",
+    "@front-brain/transformers": "0.1.0",
+    "@front-brain/webllm": "0.1.0",
+    "@huggingface/transformers": "^4.3.0",
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@mlc-ai/web-llm": "^0.2.85",
+    "onnxruntime-web": "1.30.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "coi-serviceworker": "^0.1.7",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  }
+}

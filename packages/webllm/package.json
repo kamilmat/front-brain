@@ -1,0 +1,44 @@
+{
+  "name": "@front-brain/webllm",
+  "version": "0.1.0",
+  "description": "WebLLM (MLC) chat runtime in a Web Worker with explicit load/unload and model listing.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/worker.js"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@front-brain/core": "0.1.0"
+  },
+  "peerDependencies": {
+    "@mlc-ai/web-llm": ">=0.2.80"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamilmat/front-brain.git",
+    "directory": "packages/webllm"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./core" },
+    { "path": "./catalog" },
+    { "path": "./transformers" },
+    { "path": "./webllm" },
+    { "path": "./mediapipe" },
+    { "path": "./chrome-ai" },
+    { "path": "./inpaint" },
+    { "path": "./react" }
+  ]
+}
