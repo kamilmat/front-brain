@@ -29,20 +29,41 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
       # Vosk models are served from the site itself (alphacephei.com doesn't send CORS headers).
+      # Keep in sync with apps/playground/src/lib/voskModels.ts. Failures are non-fatal; the app only
+      # lists models present in the generated models/vosk.json manifest.
       - name: Fetch Vosk speech models
         run: |
           mkdir -p apps/playground/dist/models /tmp/vosk
-          for m in vosk-model-small-pl-0.22 vosk-model-small-en-us-0.15; do
-            # Non-fatal: the rest of the site deploys even if a model download fails.
+          for m in \
+            vosk-model-small-pl-0.22 \
+            vosk-model-small-en-us-0.15 \
+            vosk-model-en-us-0.22-lgraph \
+            vosk-model-small-en-in-0.4 \
+            vosk-model-small-de-0.15 \
+            vosk-model-small-fr-0.22 \
+            vosk-model-small-es-0.42 \
+            vosk-model-small-it-0.22 \
+            vosk-model-small-pt-0.3 \
+            vosk-model-small-nl-0.22 \
+            vosk-model-small-cs-0.4-rhasspy \
+            vosk-model-small-ru-0.22; do
             if curl -fsSL --retry 3 -o "/tmp/vosk/$m.zip" "https://alphacephei.com/vosk/models/$m.zip" \
-              && unzip -q "/tmp/vosk/$m.zip" -d /tmp/vosk \
+              && unzip -q -o "/tmp/vosk/$m.zip" -d /tmp/vosk \
               && tar -czf "apps/playground/dist/models/$m.tar.gz" -C /tmp/vosk "$m"; then
               echo "packed $m"
             else
               echo "::warning::Could not fetch Vosk model $m"
             fi
+            rm -rf "/tmp/vosk/$m.zip" "/tmp/vosk/$m"
           done
-          ls -lh apps/playground/dist/models
+          python3 - <<'PY'
+          import json, os
+          d = 'apps/playground/dist/models'
+          models = [{'id': f[:-7], 'bytes': os.path.getsize(os.path.join(d, f))} for f in sorted(os.listdir(d)) if f.endswith('.tar.gz')]
+          json.dump(models, open(os.path.join(d, 'vosk.json'), 'w'))
+          print(json.dumps(models, indent=1))
+          PY
+          du -sh apps/playground/dist
       # Fails with "Not Found" until Pages is enabled: Settings → Pages → Source: GitHub Actions
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

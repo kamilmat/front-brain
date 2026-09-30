@@ -535,7 +535,8 @@ export function moodSnippets(): Snippet[] {
   ];
 }
 
-export function voiceSnippets(engine: 'webspeech' | 'whisper' | 'vosk', lang: string): Snippet[] {
+export function voiceSnippets(engine: 'webspeech' | 'whisper' | 'vosk', lang: string, voskModel?: string): Snippet[] {
+  const vm = voskModel ?? (lang.startsWith('pl') ? 'vosk-model-small-pl-0.22' : 'vosk-model-small-en-us-0.15');
   const create =
     engine === 'webspeech'
       ? [`const rec = createWebSpeechRecognizer({ lang: ${q(lang)}, onTranscript });`]
@@ -549,7 +550,7 @@ export function voiceSnippets(engine: 'webspeech' | 'whisper' | 'vosk', lang: st
           ]
         : [
             `const rec = createVoskRecognizer({`,
-            `  modelUrl: '/models/${lang.startsWith('pl') ? 'vosk-model-small-pl-0.22' : 'vosk-model-small-en-us-0.15'}.tar.gz', // host it yourself (same origin / CORS)`,
+            `  modelUrl: '/models/${vm}.tar.gz', // host it yourself (same origin / CORS)`,
             `  grammar: ['next', 'back', 'stop'], // optional: command-only mode`,
             `  onTranscript,`,
             `});`,
@@ -615,7 +616,7 @@ export function voiceSnippets(engine: 'webspeech' | 'whisper' | 'vosk', lang: st
             : [
                 `import { createModel } from 'vosk-browser';`,
                 ``,
-                `const model = await createModel('/models/${lang.startsWith('pl') ? 'vosk-model-small-pl-0.22' : 'vosk-model-small-en-us-0.15'}.tar.gz');`,
+                `const model = await createModel('/models/${vm}.tar.gz');`,
                 `const rec = new model.KaldiRecognizer(16000);`,
                 `rec.on('partialresult', (m) => console.log(m.result.partial));`,
                 `rec.on('result', (m) => console.log('final', m.result.text));`,
