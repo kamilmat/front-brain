@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { logRun } from '@front-brain/core';
 import { getTransformersRuntime, specKey, type PipelineSpec, type RunStats, type TransformersRuntime } from '@front-brain/transformers';
 import { useLoadedModel } from './hooks';
@@ -23,6 +23,8 @@ export function usePipeline(spec: PipelineSpec, opts: { label?: string; runtime?
   const [stats, setStats] = useState<RunStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streamText, setStreamText] = useState('');
+  /** Id of the latest run – older overlapping runs must not overwrite its state. */
+  const lastRun = useRef(0);
 
   const onProgress = useCallback((p: any) => {
     if (!p.file || !['initiate', 'download', 'progress', 'done'].includes(p.status)) return;
@@ -53,22 +55,26 @@ export function usePipeline(spec: PipelineSpec, opts: { label?: string; runtime?
 
   const run = useCallback(
     async <T = any>(args: unknown[], options?: Record<string, unknown>, o: { stream?: boolean; quiet?: boolean } = {}): Promise<T | undefined> => {
+      const runId = ++lastRun.current;
+      const latest = () => runId === lastRun.current;
       setBusy(true);
       setError(null);
       setStreamText('');
       try {
-        const { result, stats } = await rt.run<T>(spec, args, options, { stream: o.stream, onProgress, onToken: (t) => setStreamText((s) => s + t) });
-        setStats(stats);
+        const { result, stats } = await rt.run<T>(spec, args, options, { stream: o.stream, onProgress, onToken: (t) => latest() && setStreamText((s) => s + t) });
+        if (latest()) setStats(stats);
         if (opts.label && !o.quiet) {
           logRun({ demo: opts.label, lib: 'transformers', model: spec.model, device: spec.device, dtype: spec.dtype ?? 'auto', loadMs: stats.loadMs || undefined, inferMs: stats.inferMs, note: stats.tokens ? `${stats.tokens} tok` : undefined });
         }
         return result;
       } catch (err) {
-        setError((err as Error).message);
+        if (latest()) setError((err as Error).message);
         return undefined;
       } finally {
-        setBusy(false);
-        setFiles({});
+        if (latest()) {
+          setBusy(false);
+          setFiles({});
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

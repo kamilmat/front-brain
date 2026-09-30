@@ -80,11 +80,12 @@ function Loaded() {
 }
 
 function Downloaded() {
-  const { models, loading, refresh, remove } = useCachedModels();
+  const { models, loading, error, refresh, remove } = useCachedModels();
   const total = models.reduce((s, m) => s + m.bytes, 0);
   return (
     <Card title={`Downloaded to this browser${total ? ' · ' + formatBytes(total) : ''}`} actions={<button onClick={refresh}>Refresh</button>}>
       <p className="hint">Weights cached in Cache Storage so the next load is offline and fast. Deleting frees disk space; the model re-downloads when used again.</p>
+      {error && <pre className="error">{error}</pre>}
       {loading ? (
         <p className="hint">Scanning…</p>
       ) : models.length === 0 ? (

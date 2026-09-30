@@ -14,7 +14,7 @@ export interface CallHandlers {
   onToken?: (text: string) => void;
 }
 
-type Pending = { resolve: (v: any) => void; reject: (e: Error) => void; h: CallHandlers; key?: string };
+type Pending = { resolve: (v: any) => void; reject: (e: Error) => void; h: CallHandlers; key?: string; /** This call created the registry entry (i.e. it is the load). */ owner?: boolean };
 
 /**
  * Runs Transformers.js pipelines in a dedicated Web Worker.
@@ -72,25 +72,38 @@ export class TransformersRuntime {
     for (const m of this.registry.list()) if (m.runtime === 'transformers') this.registry.remove(m.key);
   }
 
+  /** Returns true when this call created the entry. */
   private ensureRegistered(spec: PipelineSpec, key: string) {
-    if (this.registry.get(key)) return;
+    if (this.registry.get(key)) return false;
     this.registry.upsert(
       { key, runtime: 'transformers', model: spec.model, task: spec.task, device: spec.device, dtype: spec.dtype, status: 'loading', progress: 0 },
       () => this.post({ type: 'unload', id: 0, key }),
     );
+    return true;
   }
 
   private call(req: WorkerRequest, h: CallHandlers, key?: string): Promise<any> {
-    if (key && 'spec' in req) this.ensureRegistered(req.spec, key);
-    return this.post(req, h, key);
+    const owner = !!key && 'spec' in req && this.ensureRegistered(req.spec, key);
+    return this.post(req, h, key, owner);
   }
 
-  private post(req: WorkerRequest, h: CallHandlers = {}, key?: string): Promise<any> {
+  private post(req: WorkerRequest, h: CallHandlers = {}, key?: string, owner = false): Promise<any> {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, h, key });
-      this.getWorker().postMessage({ ...req, id });
+      this.pending.set(id, { resolve, reject, h, key, owner });
+      try {
+        this.getWorker().postMessage({ ...req, id });
+      } catch (e) {
+        // e.g. DataCloneError for non-cloneable args/options
+        this.pending.delete(id);
+        if (owner && key && this.registry.get(key)?.status === 'loading') this.registry.remove(key);
+        reject(e);
+      }
     });
+  }
+
+  private clearFiles(files: Record<string, unknown>, key: string) {
+    for (const k of Object.keys(files)) if (k.startsWith(key + '|')) delete files[k];
   }
 
   private getWorker() {
@@ -117,6 +130,7 @@ export class TransformersRuntime {
           p.h.onToken?.(msg.data);
           break;
         case 'loaded':
+          if (p.key) this.clearFiles(files, p.key);
           if (p.key) this.registry.patch(p.key, { status: 'ready', progress: 1, bytes: msg.data.bytes, loadMs: msg.data.loadMs, loadedAt: Date.now(), error: undefined });
           break;
         case 'result':
@@ -132,16 +146,21 @@ export class TransformersRuntime {
         case 'error':
           this.pending.delete(msg.id);
           // A failed load leaves nothing in memory; a failed run keeps the loaded pipeline.
-          if (p.key && this.registry.get(p.key)?.status === 'loading') this.registry.remove(p.key);
+          // Only the call that created the entry may remove it (a newer load may own it now).
+          if (p.key) this.clearFiles(files, p.key);
+          if (p.key && p.owner && this.registry.get(p.key)?.status === 'loading') this.registry.remove(p.key);
           p.reject(new Error(msg.data));
           break;
       }
     };
     w.onerror = (e) => {
+      e.preventDefault();
       const err = new Error(e.message || 'Worker crashed (possibly out of memory)');
       for (const p of this.pending.values()) p.reject(err);
       this.pending.clear();
-      this.worker = null;
+      // An uncaught worker error doesn't stop the worker – kill it so its models free their memory.
+      w.terminate();
+      if (this.worker === w) this.worker = null;
       for (const m of this.registry.list()) if (m.runtime === 'transformers') this.registry.remove(m.key);
     };
     this.worker = w;

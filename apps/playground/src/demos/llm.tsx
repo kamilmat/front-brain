@@ -137,7 +137,7 @@ export function WebLLMChat() {
         <button className="primary" onClick={load} disabled={!model || !!progress || loaded}>
           {loaded ? 'Loaded' : progress ? 'Loading…' : 'Load'}
         </button>
-        <button onClick={() => rt.unload()} disabled={!rt.model || busy}>
+        <button onClick={() => rt.unload()} disabled={(!rt.model && !entry) || busy}>
           Unload
         </button>
       </div>
