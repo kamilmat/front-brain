@@ -32,7 +32,13 @@
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden; }
+/* Nothing may widen the layout viewport – on phones that makes the browser zoom out and everything looks tiny. */
+.app { max-width: 100vw; overflow-x: clip; }
+.demo-main, .section-content, .card, .card > *, label, .field { min-width: 0; }
+img, video, canvas, svg { max-width: 100%; }
+pre { max-width: 100%; overflow-x: auto; }
 a { color: var(--accent); }
 h1, h2, h3, h4 { margin: 0; }
 code { font-size: 0.85em; background: var(--panel-2); padding: 1px 5px; border-radius: 5px; }
@@ -204,6 +210,13 @@ td.bad { color: var(--danger); }
   .demo-aside { position: static; max-height: none; order: -1; }
 }
 @media (max-width: 800px) {
+  :root { font-size: 16px; }
+  input, select, textarea { font-size: 16px; } /* iOS zooms in on focus below 16px */
+  button, select, input:not([type='checkbox']):not([type='range']) { min-height: 42px; }
+  .chip { min-height: 36px; padding: 6px 14px; }
+  .topnav a { padding: 9px 12px; }
+  .card { padding: 14px; }
+  .log th, .log td { white-space: normal; }
   .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 6px; }
   .topnav { order: 3; flex-basis: 100%; }
   .brand { flex: 1; }
