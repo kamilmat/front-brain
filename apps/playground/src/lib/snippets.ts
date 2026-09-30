@@ -135,8 +135,12 @@ function specLiteral(c: PipelineChoice) {
 }
 
 /** Snippets for a Transformers.js pipeline: @front-brain vanilla, @front-brain React, plain Transformers.js. */
+const SPEAKER_EMB = 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin';
+
 export function transformersSnippets(c: PipelineChoice): Snippet[] {
-  const ex = EXAMPLES[c.task] ?? { args: TEXT, output: 'see the Transformers.js docs for this task' };
+  let ex = EXAMPLES[c.task] ?? { args: TEXT, output: 'see the Transformers.js docs for this task' };
+  // SpeechT5 needs a speaker embedding.
+  if (c.task === 'text-to-speech' && /speecht5/i.test(c.model)) ex = { ...ex, options: `{ speaker_embeddings: ${q(SPEAKER_EMB)} }` };
   const callArgs = `[${ex.args}]`;
   const opt = ex.options ? `, ${ex.options.split(' //')[0]}` : '';
   const optComment = ex.options?.includes('//') ? ` //${ex.options.split('//')[1]}` : '';
@@ -204,7 +208,9 @@ export function transformersSnippets(c: PipelineChoice): Snippet[] {
           `const streamer = new TextStreamer(pipe.tokenizer, { skip_prompt: true, callback_function: (t) => console.log(t) });`,
           `const out = await pipe(${ex.args}, { ...${ex.options ?? '{}'}, streamer });`,
         ]
-      : [`const out = await pipe(${ex.args}${ex.options ? `, ${ex.options.split(' //')[0]}` : ''});${optComment}`]),
+      : [
+          `const out = await pipe(${c.task === 'fill-mask' ? '`The capital of Poland is ${pipe.tokenizer.mask_token}.`' : ex.args}${ex.options ? `, ${ex.options.split(' //')[0]}` : ''});${optComment}`,
+        ]),
     `// out: ${ex.output}`,
     ...(ex.resultPlain ? [ex.resultPlain] : []),
     ``,

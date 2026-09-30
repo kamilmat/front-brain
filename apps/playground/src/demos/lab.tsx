@@ -124,6 +124,7 @@ export function Benchmark() {
             });
           } catch (e) {
             setError((prev) => `${prev ?? ''}${device}/${dtype}: ${(e as Error).message}\n`);
+            if (unloadAfter) await rt.unload(spec).catch(() => {});
             continue;
           } finally {
             setFiles({});
@@ -143,7 +144,7 @@ export function Benchmark() {
           times.sort((a, b) => a - b);
           const res = { device, dtype, loadMs: warm.stats.loadMs, median: times[Math.floor(times.length / 2)], min: times[0], max: times.at(-1)! };
           setResults((r) => [...r, res]);
-          logRun({ demo: 'Benchmark', lib: 'transformers', model: c.model, device, dtype, loadMs: res.loadMs, inferMs: res.median, note: `median of ${iters}` });
+          logRun({ demo: 'Benchmark', lib: 'transformers', model: c.model, device, dtype, loadMs: res.loadMs, inferMs: res.median, note: `median of ${times.length}${times.length < iters ? ` (of ${iters} planned)` : ''}` });
         }
       }
       setStatus('Done');

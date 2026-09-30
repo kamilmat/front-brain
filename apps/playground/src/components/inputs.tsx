@@ -10,19 +10,23 @@ export const SAMPLE_IMAGES = [
 ];
 export const SAMPLE_AUDIO = [{ label: 'JFK (EN, 11 s)', url: DOCS + 'jfk.wav' }];
 
-/** Creates object URLs and revokes the previous one (and all on unmount). */
+/**
+ * Creates object URLs and revokes them all on unmount. Earlier URLs are kept alive on purpose:
+ * a run started with image A may still be waiting for the model to load when image B is picked.
+ */
 function useObjectUrl() {
-  const last = useRef<string | null>(null);
+  const urls = useRef<string[]>([]);
   useEffect(
     () => () => {
-      if (last.current) URL.revokeObjectURL(last.current);
+      urls.current.forEach((u) => URL.revokeObjectURL(u));
+      urls.current = [];
     },
     [],
   );
   return (blob: Blob) => {
-    if (last.current) URL.revokeObjectURL(last.current);
-    last.current = URL.createObjectURL(blob);
-    return last.current;
+    const u = URL.createObjectURL(blob);
+    urls.current.push(u);
+    return u;
   };
 }
 
@@ -93,6 +97,8 @@ export function AudioInput({ onChange, current }: { onChange: (src: { src: Blob 
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
+  /** getUserMedia in progress – ignore further clicks so we never open two streams. */
+  const starting = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
   const mounted = useRef(true);
@@ -117,6 +123,8 @@ export function AudioInput({ onChange, current }: { onChange: (src: { src: Blob 
       recRef.current.stop();
       return;
     }
+    if (starting.current) return;
+    starting.current = true;
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -139,6 +147,8 @@ export function AudioInput({ onChange, current }: { onChange: (src: { src: Blob 
     } catch (e) {
       stopTracks();
       setError(mediaError(e));
+    } finally {
+      starting.current = false;
     }
   }
 

@@ -26,6 +26,8 @@ export function UseInProject({ title, getSnippets, disabled }: { title: string; 
   const ref = useRef<HTMLDialogElement>(null);
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [tab, setTab] = useState(0);
+  /** Did the pointer go down on the backdrop? (a text selection ending outside must not close it) */
+  const downOnBackdrop = useRef(false);
   const s = snippets[tab];
 
   return (
@@ -40,7 +42,12 @@ export function UseInProject({ title, getSnippets, disabled }: { title: string; 
       >
         {'</>'} Use in your project
       </button>
-      <dialog ref={ref} className="code-dialog" onClick={(e) => e.target === ref.current && ref.current?.close()}>
+      <dialog
+        ref={ref}
+        className="code-dialog"
+        onMouseDown={(e) => (downOnBackdrop.current = e.target === ref.current)}
+        onClick={(e) => downOnBackdrop.current && e.target === ref.current && ref.current?.close()}
+      >
         <div className="code-dialog-body">
           <header className="card-head">
             <h3>Use {title} in your project</h3>
