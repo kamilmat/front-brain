@@ -4,8 +4,8 @@ import { DemoShell } from '../components/DemoShell';
 import { AudioInput } from '../components/inputs';
 import { decodeAudio, toWav } from '@front-brain/core';
 import { useDemo } from '../lib/useDemo';
+import { flat } from '../lib/result';
 
-const flat = (r: any) => [r].flat(2);
 
 function useAudioSrc() {
   return useState<{ src: Blob | string; preview: string; label: string } | null>(null);
@@ -73,7 +73,7 @@ export function TTS() {
       onRun={async () => {
         const opts = d.choice.model.includes('speecht5') ? { speaker_embeddings: 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin' } : {};
         const r = await d.pipe.run([text], opts);
-        const a = r?.__audio ?? flat(r)[0]?.__audio;
+        const a = r?.__audio ?? flat(r)?.[0]?.__audio;
         if (a) setUrl(URL.createObjectURL(toWav(a.audio, a.sampling_rate)));
       }}
       output={url && <Card title="Audio"><audio controls autoPlay src={url} /></Card>}

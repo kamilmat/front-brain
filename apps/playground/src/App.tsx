@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { LoadedDock } from './components/LoadedDock';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { DEMOS, SECTIONS } from './demos/registry';
 import { DevicePage } from './pages/Device';
 import { HomePage } from './pages/Home';
@@ -33,6 +34,7 @@ export function App() {
         <LoadedDock />
       </header>
       <main>
+        <ErrorBoundary key={route.section + '/' + (route.page ?? '')}>
         {section ? (
           <SectionPage sectionId={section.id} page={route.page} />
         ) : route.section === 'models' ? (
@@ -46,6 +48,7 @@ export function App() {
         ) : (
           <HomePage />
         )}
+        </ErrorBoundary>
       </main>
       <footer className="footer">
         Built on <code>@front-brain/*</code> packages · Transformers.js · WebLLM · MediaPipe · ONNX Runtime Web · Chrome built-in AI

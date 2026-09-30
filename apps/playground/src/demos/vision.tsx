@@ -3,9 +3,9 @@ import { Card, ScoreBars } from '../components/ui';
 import { DemoShell } from '../components/DemoShell';
 import { ImageInput, SAMPLE_IMAGES } from '../components/inputs';
 import { useDemo } from '../lib/useDemo';
+import { flat } from '../lib/result';
 import { drawImage, type SerializedImage } from '@front-brain/transformers';
 
-const flat = (r: any) => [r].flat(2);
 export const PALETTE = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#800000', '#aaffc3', '#808000', '#000075'];
 
 function useImage(initial = SAMPLE_IMAGES[0].url) {
@@ -189,7 +189,7 @@ export function Caption() {
       d={d}
       onRun={async () => {
         const r = await d.pipe.run([img], { max_new_tokens: 64 }, { stream: true });
-        if (r) setOut(flat(r)[0].generated_text);
+        if (r) setOut(flat(r)?.[0]?.generated_text ?? null);
       }}
       output={(out || d.pipe.streamText) && <Card title="Text"><p className="big">{d.pipe.busy ? d.pipe.streamText : out}</p></Card>}
     >
@@ -204,7 +204,7 @@ export function BackgroundRemoval() {
   const [img, setImg] = useImage(SAMPLE_IMAGES[4].url);
   const [out, setOut] = useState<SerializedImage | null>(null);
   return (
-    <DemoShell d={d} onRun={async () => setOut(flat(await d.pipe.run([img]))[0]?.__image ?? null)}>
+    <DemoShell d={d} onRun={async () => setOut(flat(await d.pipe.run([img]))?.[0]?.__image ?? null)}>
       <ImageInput value={img} onChange={(u) => (setImg(u), setOut(null))} />
       <div className="grid2">
         <ImagePreview src={img} />
@@ -220,7 +220,7 @@ export function SuperRes() {
   const [out, setOut] = useState<SerializedImage | null>(null);
   const [inSize, setInSize] = useState('');
   return (
-    <DemoShell d={d} onRun={async () => setOut(flat(await d.pipe.run([img]))[0]?.__image ?? null)}>
+    <DemoShell d={d} onRun={async () => setOut(flat(await d.pipe.run([img]))?.[0]?.__image ?? null)}>
       <ImageInput value={img} onChange={(u) => (setImg(u), setOut(null))} />
       <div className="grid2">
         <div>
