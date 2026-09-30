@@ -28,7 +28,10 @@ export function MediaPipeLive() {
   // The task is dropped if someone unloads it from the dock / Models page.
   const alive = task && loadedKeys.includes(task.key) ? task : null;
 
+  const loadingRef = useRef(false);
   async function load(k = kind, d = delegate) {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -41,6 +44,7 @@ export function MediaPipeLive() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }
@@ -124,12 +128,15 @@ function TjsVideoInner({ task, setTask }: { task: FrameTask; setTask: (t: FrameT
   const [on, setOn] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [fps, setFps] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const runRef = useRef(d.pipe.run);
   runRef.current = d.pipe.run;
 
   useEffect(() => {
     if (!on) return;
     let stop = false;
+    setFailed(false);
     const cnv = document.createElement('canvas');
     (async () => {
       while (!stop) {
@@ -148,7 +155,11 @@ function TjsVideoInner({ task, setTask }: { task: FrameTask; setTask: (t: FrameT
         const opts = task === 'object-detection' ? { threshold: 0.6, percentage: true } : task === 'image-classification' ? { top_k: 3 } : {};
         const r = await runRef.current([url], opts, { quiet: true });
         URL.revokeObjectURL(url);
-        if (r === undefined) break;
+        if (r === undefined) {
+          // Run failed (error shown below) – wait for a retry or a different model.
+          if (!stop) setFailed(true);
+          break;
+        }
         if (!stop) {
           setResult(r);
           setFps(1000 / (performance.now() - t0));
@@ -158,7 +169,7 @@ function TjsVideoInner({ task, setTask }: { task: FrameTask; setTask: (t: FrameT
     return () => {
       stop = true;
     };
-  }, [on, task]);
+  }, [on, task, d.pipe.key, attempt]);
 
   const flatR = result ? [result].flat(2) : [];
   return (
@@ -190,6 +201,11 @@ function TjsVideoInner({ task, setTask }: { task: FrameTask; setTask: (t: FrameT
           {task === 'image-to-text' && flatR[0]?.generated_text && <span>{flatR[0].generated_text}</span>}
         </div>
         <ErrorBox error={d.pipe.error} />
+        {failed && on && (
+          <button className="primary" onClick={() => setAttempt((a) => a + 1)}>
+            Retry
+          </button>
+        )}
       </Card>
     </DemoGrid>
   );

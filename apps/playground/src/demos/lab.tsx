@@ -12,6 +12,7 @@ export function RunLog() {
     a.href = URL.createObjectURL(new Blob([JSON.stringify(runs, null, 2)], { type: 'application/json' }));
     a.download = `front-brain-runs-${new Date().toISOString().slice(0, 19)}.json`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   return (
     <Card
@@ -128,12 +129,18 @@ export function Benchmark() {
             setFiles({});
           }
           const times: number[] = [];
-          for (let i = 0; i < iters; i++) {
-            setStatus(`${device} / ${dtype}: iteration ${i + 1}/${iters}`);
-            times.push((await rt.run(spec, c.args, c.options)).stats.inferMs);
+          try {
+            for (let i = 0; i < iters; i++) {
+              setStatus(`${device} / ${dtype}: iteration ${i + 1}/${iters}`);
+              times.push((await rt.run(spec, c.args, c.options)).stats.inferMs);
+            }
+          } catch (e) {
+            setError((prev) => `${prev ?? ''}${device}/${dtype}: ${(e as Error).message}\n`);
+          } finally {
+            if (unloadAfter) await rt.unload(spec).catch(() => {});
           }
+          if (!times.length) continue;
           times.sort((a, b) => a - b);
-          if (unloadAfter) await rt.unload(spec);
           const res = { device, dtype, loadMs: warm.stats.loadMs, median: times[Math.floor(times.length / 2)], min: times[0], max: times.at(-1)! };
           setResults((r) => [...r, res]);
           logRun({ demo: 'Benchmark', lib: 'transformers', model: c.model, device, dtype, loadMs: res.loadMs, inferMs: res.median, note: `median of ${iters}` });
@@ -164,7 +171,7 @@ export function Benchmark() {
           </label>
           <label>
             Iterations
-            <input type="number" min={1} max={50} value={iters} onChange={(e) => setIters(+e.target.value)} />
+            <input type="number" min={1} max={50} value={iters} onChange={(e) => setIters(Math.min(50, Math.max(1, Math.round(+e.target.value) || 1)))} />
           </label>
         </div>
         <div className="row">

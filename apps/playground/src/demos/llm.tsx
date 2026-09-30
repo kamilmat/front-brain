@@ -77,13 +77,16 @@ export function WebLLMChat() {
   const shown = useMemo(() => models.filter((m) => m.id.toLowerCase().includes(filter.toLowerCase()) || m.id === model), [models, filter, model]);
   const loaded = entry?.status === 'ready' && rt.model === model;
 
+  /** Returns false when loading failed (the error is shown). */
   async function load() {
     setError(null);
     try {
       const { loadMs } = await rt.load(model, (p) => setProgress(`${Math.round(p.progress * 100)}% · ${p.text}`), info?.vramMB);
       logRun({ demo: 'LLM chat (WebLLM)', lib: 'webllm', model, device: 'webgpu', loadMs, note: 'load' });
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setProgress(null);
     }
@@ -96,7 +99,7 @@ export function WebLLMChat() {
     setPending('');
     setError(null);
     try {
-      if (!loaded) await load();
+      if (!loaded && !(await load())) return;
       const r = await rt.chat(next, { onToken: (_, full) => setPending(full) });
       setMessages([...next, { role: 'assistant', content: r.text }]);
       setPerf(`prefill ${r.prefillTps?.toFixed(1)} tok/s · decode ${r.decodeTps?.toFixed(1)} tok/s · ${r.completionTokens} tokens`);

@@ -1,5 +1,5 @@
 import { registry as defaultRegistry, type ModelRegistry } from '@front-brain/core';
-import { specKey, type PipelineSpec, type RunStats, type WorkerRequest, type WorkerResponse } from './protocol';
+import { specKey, type PipelineSpec, type RunStats, type WorkerRequest, type WorkerResponse } from './protocol.js';
 
 export interface RuntimeOptions {
   /** Custom worker factory, e.g. `() => new Worker(new URL('./my-worker.ts', import.meta.url), { type: 'module' })`

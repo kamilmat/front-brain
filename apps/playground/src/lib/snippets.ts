@@ -84,14 +84,14 @@ const EXAMPLES: Record<string, TaskExample> = {
   'image-to-text': { args: q(SAMPLE_IMG), options: '{ max_new_tokens: 64 }', output: '[{ generated_text }]', stream: true },
   'background-removal': {
     args: q(SAMPLE_IMG),
-    output: 'RGBA image with transparent background',
-    resultFrontBrain: "drawImage(result[0].__image, canvas); // import { drawImage } from '@front-brain/transformers'",
-    resultPlain: 'document.body.append(out[0].toCanvas());',
+    output: 'RGBA image with transparent background (an array when you pass an array of images)',
+    resultFrontBrain: "drawImage(result.__image, canvas); // import { drawImage } from '@front-brain/transformers'",
+    resultPlain: 'document.body.append(out.toCanvas());',
   },
   'image-to-image': {
     args: q(SAMPLE_IMG),
-    output: 'upscaled image',
-    resultFrontBrain: "drawImage(result[0].__image, canvas); // import { drawImage } from '@front-brain/transformers'",
+    output: 'upscaled image (an array when you pass an array of images)',
+    resultFrontBrain: "drawImage(result.__image, canvas); // import { drawImage } from '@front-brain/transformers'",
     resultPlain: 'document.body.append(out.toCanvas());',
   },
   'automatic-speech-recognition': {
@@ -304,7 +304,7 @@ export function mediapipeSnippets(kind: string, delegate: 'GPU' | 'CPU', modelUr
       code: [
         `import { FilesetResolver, ${C} } from '@mediapipe/tasks-vision';`,
         ``,
-        `const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm');`,
+        `const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm') // match your installed version;`,
         `const task = await ${C}.createFromOptions(fileset, {`,
         `  baseOptions: { modelAssetPath: ${q(modelUrl)}, delegate: ${q(delegate)} },`,
         `  runningMode: 'VIDEO',`,
@@ -385,7 +385,8 @@ export function chromeAISnippets(api: string): Snippet[] {
       code: [
         `import { availability, createSession } from '@front-brain/chrome-ai';`,
         ``,
-        `if ((await availability(${q(api)})) !== 'unavailable') {`,
+        `const state = await availability(${q(api)}${api === 'Translator' ? `, ${opts}` : ''});`,
+        `if (state === 'available' || state === 'downloadable' || state === 'downloading') {`,
         `  const session = await createSession(${q(api)}, ${opts}, (f) => console.log('download', f));`,
         `  ${call}`,
         `}`,
@@ -397,7 +398,8 @@ export function chromeAISnippets(api: string): Snippet[] {
       label: 'Plain Chrome API',
       install: '# no install – built into Chrome 138+ (desktop)',
       code: [
-        `if ('${api}' in self && (await ${api}.availability()) !== 'unavailable') {`,
+        `const state = '${api}' in self ? await ${api}.availability(${api === 'Translator' ? opts : ''}) : 'unavailable';`,
+        `if (state !== 'unavailable') {`,
         `  const session = await ${api}.create({`,
         `    ...${opts},`,
         `    monitor: (m) => m.addEventListener('downloadprogress', (e) => console.log(e.loaded)),`,

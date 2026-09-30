@@ -1,4 +1,4 @@
-import type { SerializedImage } from './protocol';
+import type { SerializedImage } from './protocol.js';
 
 /** Draw a serialized RGBA image (from pipeline output `{ __image }`) onto a canvas. */
 export function drawImage(img: SerializedImage, canvas: HTMLCanvasElement | OffscreenCanvas) {

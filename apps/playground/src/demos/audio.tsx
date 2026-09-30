@@ -74,7 +74,11 @@ export function TTS() {
         const opts = d.choice.model.includes('speecht5') ? { speaker_embeddings: 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin' } : {};
         const r = await d.pipe.run([text], opts);
         const a = r?.__audio ?? flat(r)?.[0]?.__audio;
-        if (a) setUrl(URL.createObjectURL(toWav(a.audio, a.sampling_rate)));
+        if (a)
+          setUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return URL.createObjectURL(toWav(a.audio, a.sampling_rate));
+          });
       }}
       output={url && <Card title="Audio"><audio controls autoPlay src={url} /></Card>}
     >

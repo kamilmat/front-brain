@@ -32,19 +32,26 @@ export function Inpaint() {
 
   // Load image into a fixed 512×512 canvas (model input size).
   useEffect(() => {
+    let cancelled = false;
     const im = new Image();
     im.crossOrigin = 'anonymous';
+    im.onerror = () => !cancelled && setError('Could not load this image (the server may not allow cross-origin use). Try uploading it instead.');
     im.onload = () => {
+      if (cancelled || !baseRef.current || !maskRef.current) return;
+      setError(null);
       const s = Math.min(SIZE / im.width, SIZE / im.height);
       const w = im.width * s;
       const h = im.height * s;
-      const ctx = baseRef.current!.getContext('2d')!;
+      const ctx = baseRef.current.getContext('2d')!;
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, SIZE, SIZE);
       ctx.drawImage(im, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
-      maskRef.current!.getContext('2d')!.clearRect(0, 0, SIZE, SIZE);
+      maskRef.current.getContext('2d')!.clearRect(0, 0, SIZE, SIZE);
     };
     im.src = img;
+    return () => {
+      cancelled = true;
+    };
   }, [img]);
 
   function paint(e: React.PointerEvent<HTMLCanvasElement>) {

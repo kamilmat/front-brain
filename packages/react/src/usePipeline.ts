@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { logRun } from '@front-brain/core';
 import { getTransformersRuntime, specKey, type PipelineSpec, type RunStats, type TransformersRuntime } from '@front-brain/transformers';
-import { useLoadedModel } from './hooks';
+import { useLoadedModel } from './hooks.js';
 
 export interface FileProgress {
   file: string;

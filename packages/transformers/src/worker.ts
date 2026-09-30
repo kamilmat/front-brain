@@ -4,7 +4,7 @@
  * TransformersRuntime spawn it automatically.
  */
 import { pipeline, env, TextStreamer, RawImage } from '@huggingface/transformers';
-import { specKey, type WorkerRequest, type WorkerResponse } from './protocol';
+import { specKey, type WorkerRequest, type WorkerResponse } from './protocol.js';
 
 env.allowLocalModels = false;
 
