@@ -35,6 +35,7 @@ const audio = () => import('./audio');
 const video = () => import('./video');
 const lab = () => import('./lab');
 const inpaint = () => import('./inpaint');
+const interactive = () => import('./interactive');
 const pick = <M,>(loader: () => Promise<M>, name: keyof M) => lazy(async () => ({ default: (await loader())[name] as ComponentType }));
 
 export const DEMOS: DemoDef[] = [
@@ -63,6 +64,8 @@ export const DEMOS: DemoDef[] = [
   { id: 'inpaint', section: 'image', title: 'Object removal', lib: 'ONNX Runtime Web', tasks: ['inpainting'], desc: 'Paint over something – LaMa fills the hole.', component: pick(inpaint, 'Inpaint') },
 
   { id: 'live', section: 'video', title: 'Live tracking', lib: 'MediaPipe', tasks: ['mp:face', 'mp:hand', 'mp:pose', 'mp:gesture', 'mp:object', 'mp:selfie'], mobile: true, desc: 'Face mesh, hands, pose, gestures, objects, selfie segmentation at 30+ FPS.', component: pick(video, 'MediaPipeLive') },
+  { id: 'gestures', section: 'video', title: 'Gesture control', lib: 'MediaPipe', tasks: ['mp:gesture'], mobile: true, desc: 'Control the page with your hand: air cursor, pinch to click, swipe, gesture actions, sound effects and a theremin.', component: pick(interactive, 'GestureControl') },
+  { id: 'mood', section: 'video', title: 'Mood & blink detector', lib: 'MediaPipe', tasks: ['mp:face'], mobile: true, desc: 'Live mood from facial expression, blink counter, winks and a drowsiness alarm.', component: pick(interactive, 'MoodBlink') },
   { id: 'frames', section: 'video', title: 'Any vision model on video', lib: 'Transformers.js', desc: 'Frame-by-frame detection, depth, classification or captioning.', component: pick(video, 'TjsVideo') },
 
   { id: 'asr', section: 'audio', title: 'Speech to text', lib: 'Transformers.js', tasks: ['automatic-speech-recognition'], mobile: true, desc: 'Whisper (tiny → large-v3-turbo), Moonshine. Microphone or file.', component: pick(audio, 'ASR') },

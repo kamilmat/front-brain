@@ -9,7 +9,7 @@ A lab for testing AI models that run **entirely in the browser** (WebGPU / WebAs
 | 💬 Chat | WebLLM (100+ LLMs), Transformers.js chat, Chrome built-in AI (Gemini Nano) | WebLLM, Transformers.js, Chrome AI |
 | 📝 Text | Sentiment, NER, zero-shot, fill-mask, QA, summarization, translation (NLLB-200), semantic search | Transformers.js |
 | 🖼️ Image | Classification, CLIP, detection, open-vocab detection, segmentation, depth, captioning/OCR, background removal, super-resolution, object removal (LaMa) | Transformers.js, ONNX Runtime Web |
-| 🎥 Video | Live face / hands / pose / gestures / objects / selfie segmentation; any vision model frame-by-frame | MediaPipe, Transformers.js |
+| 🎥 Video | Live face / hands / pose / gestures / objects / selfie segmentation; **gesture control** (air cursor, pinch-click, swipe, gesture actions, sound effects, theremin); **mood & blink detector** (mood, blinks/min, winks, drowsiness alarm); any vision model frame-by-frame | MediaPipe, Transformers.js |
 | 🎙️ Audio | Whisper & Moonshine ASR, TTS, sound classification | Transformers.js |
 | 🧪 Lab | Benchmark (WASM vs WebGPU × dtypes), run log with JSON export | – |
 | 📦 Models | In memory (unload), downloaded (delete), catalog with per-device fit | – |
@@ -17,6 +17,7 @@ A lab for testing AI models that run **entirely in the browser** (WebGPU / WebAs
 
 - **Explicit load / unload** – every demo has a model panel with *Load* and *Unload*; the 🧠 dock in the top bar shows everything in memory across all runtimes.
 - **Fit hints, never blocking** – each model gets ✅ / 🟢 / ⚠️ / 🟥 / ⛔ for *this* device (size vs memory budget, WebGPU, fp16) with reasons. You can still load anything.
+- **Use in your project** – every model panel has a `</>` button with copy-paste code for the selected model/device/dtype (with `@front-brain/*` or the plain library).
 - **Any model** – pick from the catalog or type any Hugging Face ONNX model id; choose device and dtype.
 
 ### Will it run on a phone?
@@ -31,7 +32,7 @@ A lab for testing AI models that run **entirely in the browser** (WebGPU / WebAs
 | [`@front-brain/catalog`](packages/catalog) | Curated browser-ready models with size and requirements. |
 | [`@front-brain/transformers`](packages/transformers) | Transformers.js pipelines in a Web Worker: load / run / unload, progress, streaming, timings. |
 | [`@front-brain/webllm`](packages/webllm) | WebLLM chat in a Web Worker: model list, load / chat / unload. |
-| [`@front-brain/mediapipe`](packages/mediapipe) | Real-time MediaPipe vision tasks + video loop + drawing. |
+| [`@front-brain/mediapipe`](packages/mediapipe) | Real-time MediaPipe vision tasks + video loop + drawing; `GestureController` (pointer, pinch, swipe, gestures), `MoodTracker`, `BlinkDetector`. |
 | [`@front-brain/chrome-ai`](packages/chrome-ai) | Chrome built-in AI (Gemini Nano) helpers. |
 | [`@front-brain/inpaint`](packages/inpaint) | LaMa object removal on onnxruntime-web. |
 | [`@front-brain/react`](packages/react) | React hooks: `usePipeline`, `useLoadedModels`, `useHardware`, `useFit`, `useCachedModels`, `useRuns`. |

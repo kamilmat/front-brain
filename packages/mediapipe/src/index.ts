@@ -149,7 +149,14 @@ function drawResult(kind: VisionKind, ctx: CanvasRenderingContext2D, r: any): st
  * Run a task on every new video frame and draw on `canvas`. Returns a stop function.
  * `onStats` receives FPS once per second plus the task's text summary.
  */
-export function runVideoLoop(video: HTMLVideoElement, canvas: HTMLCanvasElement, task: VisionTask, onStats?: (s: { fps: number; summary: string }) => void) {
+export function runVideoLoop(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+  task: VisionTask,
+  onStats?: (s: { fps: number; summary: string }) => void,
+  /** Raw task result for every processed frame (before drawing). */
+  onResult?: (result: any, timestampMs: number) => void,
+) {
   const ctx = canvas.getContext('2d')!;
   let raf = 0;
   let stopped = false;
@@ -165,7 +172,9 @@ export function runVideoLoop(video: HTMLVideoElement, canvas: HTMLCanvasElement,
     if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
     if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
     const now = performance.now();
-    summary = task.draw(ctx, task.detect(video, now));
+    const result = task.detect(video, now);
+    onResult?.(result, now);
+    summary = task.draw(ctx, result);
     frames++;
     if (now - lastFps > 1000) {
       onStats?.({ fps: Math.round((frames * 1000) / (now - lastFps)), summary });
@@ -179,3 +188,6 @@ export function runVideoLoop(video: HTMLVideoElement, canvas: HTMLCanvasElement,
     cancelAnimationFrame(raf);
   };
 }
+
+export * from './gestures.js';
+export * from './face.js';
