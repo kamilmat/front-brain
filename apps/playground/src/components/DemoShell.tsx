@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Demo } from '../lib/useDemo';
 import { ModelPanel } from './ModelPanel';
 import { Card, ErrorBox, RunButton, Stats } from './ui';
@@ -17,19 +17,29 @@ export function DemoGrid({ aside, children }: { aside: ReactNode; children: Reac
 export function DemoShell(props: { d: Demo; onRun?: () => void; runLabel?: string; runDisabled?: boolean; children?: ReactNode; output?: ReactNode }) {
   const { d } = props;
   const p = d.pipe;
+  // Errors thrown by the demo itself (e.g. decoding an input file) – pipeline errors come from p.error.
+  const [runError, setRunError] = useState<string | null>(null);
+  const onRun = async () => {
+    setRunError(null);
+    try {
+      await props.onRun?.();
+    } catch (e) {
+      setRunError((e as Error).message || String(e));
+    }
+  };
   return (
     <DemoGrid aside={<ModelPanel d={d} />}>
       <Card title="Input">
         {props.children}
         {props.onRun && (
           <div className="row wrap">
-            <RunButton busy={p.busy} onClick={props.onRun} label={props.runLabel} disabled={props.runDisabled || !d.choice.model} />
+            <RunButton busy={p.busy} onClick={onRun} label={props.runLabel} disabled={props.runDisabled || !d.choice.model} />
             {!p.loaded && !p.busy && <span className="hint">First run downloads the model.</span>}
             <Stats stats={p.stats} />
           </div>
         )}
         {p.busy && Object.keys(p.files).length > 0 && <p className="hint">Downloading model – see the panel.</p>}
-        {!p.busy && <ErrorBox error={p.error} />}
+        {!p.busy && <ErrorBox error={p.error ?? runError} />}
       </Card>
       {props.output}
     </DemoGrid>

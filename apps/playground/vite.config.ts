@@ -11,5 +11,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@huggingface/transformers', 'onnxruntime-web', '@front-brain/transformers', '@front-brain/webllm', '@front-brain/inpaint'],
   },
-  build: { target: 'es2022', chunkSizeWarningLimit: 8000 },
+  build: { target: 'es2022', chunkSizeWarningLimit: 8000, sourcemap: true },
 });
