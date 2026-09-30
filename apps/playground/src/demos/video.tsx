@@ -7,6 +7,8 @@ import { VideoSource } from '../components/inputs';
 import { DemoGrid } from '../components/DemoShell';
 import { ModelPanel } from '../components/ModelPanel';
 import { useDemo } from '../lib/useDemo';
+import { UseInProject } from '../components/UseInProject';
+import { mediapipeSnippets } from '../lib/snippets';
 import { Boxes, CanvasImage } from './vision';
 
 // ---------------------------------------------------------------- MediaPipe (real-time)
@@ -78,6 +80,7 @@ export function MediaPipeLive() {
           Unload
         </button>
       </div>
+      <UseInProject title={VISION_TASKS[kind].label} getSnippets={() => mediapipeSnippets(kind, delegate, VISION_TASKS[kind].model)} />
     </Card>
   );
 

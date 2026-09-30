@@ -5,6 +5,8 @@ import { inpaint, loadLama, unloadLama, LAMA_SIZE } from '@front-brain/inpaint';
 import { Card, ErrorBox, FitCard, RunButton, Segmented } from '../components/ui';
 import { ImageInput, SAMPLE_IMAGES } from '../components/inputs';
 import { DemoGrid } from '../components/DemoShell';
+import { UseInProject } from '../components/UseInProject';
+import { inpaintSnippets } from '../lib/snippets';
 
 const SIZE = LAMA_SIZE;
 
@@ -105,6 +107,7 @@ export function Inpaint() {
         </button>
       </div>
       {progress != null && <progress value={progress} max={1} />}
+      <UseInProject title="LaMa inpainting" getSnippets={() => inpaintSnippets(device)} />
     </Card>
   );
 

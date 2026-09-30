@@ -7,6 +7,8 @@ import { Card, ErrorBox, FitCard, Stats } from '../components/ui';
 import { DemoGrid, DemoShell } from '../components/DemoShell';
 import { ChatView, type ChatMsg } from '../components/Chat';
 import { useDemo } from '../lib/useDemo';
+import { UseInProject } from '../components/UseInProject';
+import { chromeAISnippets, webllmSnippets } from '../lib/snippets';
 
 const SYSTEM: ChatMsg = { role: 'system', content: "You are a helpful, concise assistant running locally in the user's browser." };
 
@@ -141,6 +143,7 @@ export function WebLLMChat() {
       </div>
       {progress && <progress value={entry?.progress ?? 0} max={1} />}
       <p className="hint">One WebLLM model is held at a time; loading another replaces it. Weights stay cached on disk (see Models → Downloaded).</p>
+      <UseInProject title={model || 'WebLLM'} disabled={!model} getSnippets={() => webllmSnippets(model)} />
     </Card>
   );
 
@@ -238,6 +241,7 @@ export function ChromeAI() {
         </p>
       )}
       {dl != null && <progress value={dl} max={1} />}
+      <UseInProject title={TOOL_API[tool]} getSnippets={() => chromeAISnippets(TOOL_API[tool])} />
     </Card>
   );
   return (
