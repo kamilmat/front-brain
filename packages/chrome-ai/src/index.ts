@@ -25,6 +25,8 @@ export async function availabilityAll(): Promise<Record<ChromeAIApi, Availabilit
   return out;
 }
 
+let seq = 0;
+
 /**
  * Create a session for one of the APIs. Triggers the Gemini Nano download if needed
  * (`onDownloadProgress` gets 0..1). Sessions are tracked in the model registry; unloading destroys them.
@@ -32,7 +34,8 @@ export async function availabilityAll(): Promise<Record<ChromeAIApi, Availabilit
 export async function createSession<T = any>(name: ChromeAIApi, options: Record<string, unknown> = {}, onDownloadProgress?: (fraction: number) => void, reg: ModelRegistry = defaultRegistry): Promise<T> {
   const A = api(name);
   if (!A) throw new Error(`${name} API is not available in this browser.`);
-  const key = `chrome-ai:${name}:${JSON.stringify(options)}`;
+  // Unique per session: several sessions with the same options must not share (and overwrite) one entry.
+  const key = `chrome-ai:${name}#${++seq}`;
   reg.upsert({ key, runtime: 'chrome-ai', model: 'Gemini Nano', task: name, device: 'on-device', status: 'loading' });
   try {
     const t0 = performance.now();
@@ -45,13 +48,26 @@ export async function createSession<T = any>(name: ChromeAIApi, options: Record<
         });
       },
     });
-    reg.upsert({ key, runtime: 'chrome-ai', model: 'Gemini Nano', task: name, device: 'on-device', status: 'ready', loadMs: performance.now() - t0, loadedAt: Date.now() }, () => session.destroy?.());
+    // destroy() – called by the app or via the registry – always removes the entry too.
+    const destroy = session.destroy?.bind(session);
+    let destroyed = false;
+    session.isDestroyed = () => destroyed;
+    session.destroy = () => {
+      if (destroyed) return;
+      destroyed = true;
+      reg.remove(key);
+      destroy?.();
+    };
+    reg.upsert({ key, runtime: 'chrome-ai', model: 'Gemini Nano', task: name, device: 'on-device', status: 'ready', loadMs: performance.now() - t0, loadedAt: Date.now() }, () => session.destroy());
     return session;
   } catch (e) {
     reg.remove(key);
     throw e;
   }
 }
+
+/** False once the session was destroyed (by the app or by unloading it from the registry). */
+export const isSessionAlive = (session: any) => !!session && !session.isDestroyed?.();
 
 /** Stream a prompt through a LanguageModel session, calling onChunk with the growing text. */
 export async function promptStreaming(session: any, input: string, onChunk: (full: string) => void): Promise<string> {

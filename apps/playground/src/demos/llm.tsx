@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { assessFit, FIT_ICON, formatMB, logRun } from '@front-brain/core';
 import { useHardware, useLoadedModel } from '@front-brain/react';
 import { getWebLLMRuntime, listWebLLMModels, type WebLLMModelInfo } from '@front-brain/webllm';
-import { availabilityAll, createSession, promptStreaming, type Availability, type ChromeAIApi } from '@front-brain/chrome-ai';
+import { availabilityAll, createSession, isSessionAlive, promptStreaming, type Availability, type ChromeAIApi } from '@front-brain/chrome-ai';
 import { Card, ErrorBox, FitCard, Stats } from '../components/ui';
 import { DemoGrid, DemoShell } from '../components/DemoShell';
 import { ChatView, type ChatMsg } from '../components/Chat';
@@ -189,6 +189,17 @@ export function ChromeAI() {
   const [src, setSrc] = useState('en');
   const [tgt, setTgt] = useState('pl');
   const sessionRef = useRef<any>(null);
+  /** One reusable session per API + options (re-created if it was unloaded). */
+  const sessions = useRef(new Map<string, any>());
+  const session = async (api: ChromeAIApi, options: Record<string, unknown>) => {
+    const k = api + JSON.stringify(options);
+    let sess = sessions.current.get(k);
+    if (!isSessionAlive(sess)) {
+      sess = await createSession(api, options, setDl);
+      sessions.current.set(k, sess);
+    }
+    return sess;
+  };
 
   useEffect(() => {
     availabilityAll().then(setAvail);
@@ -202,19 +213,19 @@ export function ChromeAI() {
     try {
       const api = TOOL_API[tool];
       if (tool === 'prompt') {
-        sessionRef.current ??= await createSession(api, { initialPrompts: [{ role: 'system', content: SYSTEM.content }] }, setDl);
+        if (!isSessionAlive(sessionRef.current)) sessionRef.current = await createSession(api, { initialPrompts: [{ role: 'system', content: SYSTEM.content }] }, setDl);
         await promptStreaming(sessionRef.current, text, setOut);
       } else if (tool === 'summarize') {
-        setOut(await (await createSession(api, { type: 'key-points', format: 'markdown', length: 'medium' }, setDl)).summarize(text));
+        setOut(await (await session(api, { type: 'key-points', format: 'markdown', length: 'medium' })).summarize(text));
       } else if (tool === 'translate') {
-        setOut(await (await createSession(api, { sourceLanguage: src, targetLanguage: tgt }, setDl)).translate(text));
+        setOut(await (await session(api, { sourceLanguage: src, targetLanguage: tgt })).translate(text));
       } else if (tool === 'detect') {
-        const r = await (await createSession(api, {}, setDl)).detect(text);
+        const r = await (await session(api, {})).detect(text);
         setOut(r.slice(0, 5).map((x: any) => `${x.detectedLanguage}: ${(x.confidence * 100).toFixed(1)}%`).join('\n'));
       } else if (tool === 'write') {
-        setOut(await (await createSession(api, { tone: 'neutral' }, setDl)).write(text));
+        setOut(await (await session(api, { tone: 'neutral' })).write(text));
       } else {
-        setOut(await (await createSession(api, { tone: 'more-formal' }, setDl)).rewrite(text));
+        setOut(await (await session(api, { tone: 'more-formal' })).rewrite(text));
       }
       logRun({ demo: 'Chrome built-in AI', lib: 'chrome-ai', model: `Gemini Nano (${api})`, device: 'on-device', inferMs: performance.now() - t0 });
     } catch (e) {

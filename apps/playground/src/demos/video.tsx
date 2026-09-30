@@ -32,7 +32,7 @@ export function MediaPipeLive() {
     setLoading(true);
     setError(null);
     try {
-      if (alive && (alive.kind !== k || !alive.key.endsWith(d))) alive.close();
+      if (alive && (alive.kind !== k || alive.delegate !== d)) alive.close();
       const t0 = performance.now();
       const t = await createVisionTask(k, { delegate: d });
       logRun({ demo: 'Live tracking', lib: 'mediapipe', model: k, device: d, loadMs: performance.now() - t0, note: 'load' });
@@ -53,7 +53,7 @@ export function MediaPipeLive() {
   useEffect(() => () => task?.close(), [task]);
 
   const fit = hw ? assessFit({ sizeMB: VISION_TASKS[kind].sizeMB, realtime: true }, hw, delegate === 'GPU' ? 'webgpu' : 'wasm') : null;
-  const isCurrent = alive?.kind === kind && alive.key.endsWith(delegate);
+  const isCurrent = alive?.kind === kind && alive.delegate === delegate;
 
   const aside = (
     <Card title="Model" className="model-panel">

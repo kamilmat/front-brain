@@ -35,6 +35,8 @@ export interface VisionTaskOptions {
 
 export interface VisionTask {
   kind: VisionKind;
+  delegate: 'GPU' | 'CPU';
+  /** Registry key (unique per task instance). */
   key: string;
   /** Process one video frame (timestamp in ms, monotonically increasing). */
   detect(frame: HTMLVideoElement | HTMLCanvasElement | ImageBitmap, timestampMs: number): any;
@@ -43,10 +45,13 @@ export interface VisionTask {
   close(): void;
 }
 
+let seq = 0;
+
 export async function createVisionTask(kind: VisionKind, opts: VisionTaskOptions = {}): Promise<VisionTask> {
   const reg = opts.registry ?? defaultRegistry;
   const delegate = opts.delegate ?? 'GPU';
-  const key = `mediapipe:${kind}:${delegate}`;
+  // Unique per task instance, so closing an older task never removes a newer task's entry.
+  const key = `mediapipe:${kind}:${delegate}#${++seq}`;
   reg.upsert({ key, runtime: 'mediapipe', model: kind, task: kind, device: delegate, status: 'loading' });
   const t0 = performance.now();
   let runner: any;
@@ -77,6 +82,7 @@ export async function createVisionTask(kind: VisionKind, opts: VisionTaskOptions
   );
   return {
     kind,
+    delegate,
     key,
     detect: (frame, ts) => (kind === 'gesture' ? runner.recognizeForVideo(frame, ts) : kind === 'selfie' ? runner.segmentForVideo(frame, ts) : runner.detectForVideo(frame, ts)),
     draw: (ctx, r) => drawResult(kind, ctx, r),

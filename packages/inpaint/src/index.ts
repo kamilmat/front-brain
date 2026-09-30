@@ -5,9 +5,16 @@ export const LAMA_MODEL_URL = 'https://huggingface.co/Carve/LaMa-ONNX/resolve/ma
 export const LAMA_SIZE = 512;
 
 type Device = 'webgpu' | 'wasm';
-let sessionP: Promise<{ ort: any; session: any }> | null = null;
-let sessionDevice: Device | null = null;
-const keyFor = (d: Device) => `onnx:Carve/LaMa-ONNX:${d}`;
+interface Loaded {
+  ort: any;
+  session: any;
+}
+
+/** Current load (one model at a time). */
+let current: { device: Device; key: string; promise: Promise<Loaded> } | null = null;
+/** Runs in progress per session – release waits for them. */
+const running = new Map<any, Set<Promise<unknown>>>();
+let seq = 0;
 
 export interface LamaOptions {
   modelUrl?: string;
@@ -16,44 +23,60 @@ export interface LamaOptions {
 }
 
 export function isLamaLoaded(device: Device) {
-  return !!sessionP && sessionDevice === device;
+  return current?.device === device;
 }
 
-export function loadLama(device: Device, opts: LamaOptions = {}) {
+async function release(promise: Promise<Loaded>) {
+  const loaded = await promise.catch(() => null);
+  if (!loaded) return;
+  await Promise.allSettled([...(running.get(loaded.session) ?? [])]);
+  running.delete(loaded.session);
+  await loaded.session.release?.();
+}
+
+export function loadLama(device: Device, opts: LamaOptions = {}): Promise<Loaded> {
   const reg = opts.registry ?? defaultRegistry;
-  if (sessionP && sessionDevice === device) return sessionP;
-  if (sessionDevice) void unloadLama(reg);
-  sessionDevice = device;
-  const key = keyFor(device);
+  if (current?.device === device) return current.promise;
+  if (current) void unloadLama(reg);
+  // Unique key per load so a stale load can never touch a newer entry.
+  const key = `onnx:Carve/LaMa-ONNX:${device}#${++seq}`;
   reg.upsert({ key, runtime: 'onnx', model: 'Carve/LaMa-ONNX', task: 'inpainting', device, dtype: 'fp32', status: 'loading', progress: 0 });
   const t0 = performance.now();
-  const p = (async () => {
+  // eslint-disable-next-line prefer-const -- referenced inside its own initializer (cancellation check)
+  let promise!: Promise<Loaded>;
+  promise = (async () => {
     const ort: any = device === 'webgpu' ? await import('onnxruntime-web/webgpu') : await import('onnxruntime-web');
     const buf = await fetchCached(opts.modelUrl ?? LAMA_MODEL_URL, (f) => {
       reg.patch(key, { progress: f });
       opts.onProgress?.(f);
     });
     const session = await ort.InferenceSession.create(buf, { executionProviders: [device] });
-    reg.upsert(
-      { key, runtime: 'onnx', model: 'Carve/LaMa-ONNX', task: 'inpainting', device, dtype: 'fp32', status: 'ready', progress: 1, bytes: buf.length, loadMs: performance.now() - t0, loadedAt: Date.now() },
-      () => unloadLama(reg),
-    );
+    if (current?.promise !== promise) {
+      // Superseded or unloaded while loading.
+      await session.release?.();
+      throw new Error('LaMa load was cancelled');
+    }
+    reg.patch(key, { status: 'ready', progress: 1, bytes: buf.length, loadMs: performance.now() - t0, loadedAt: Date.now() });
     return { ort, session };
   })();
-  sessionP = p;
-  p.catch(() => {
-    reg.remove(key);
-    if (sessionP === p) sessionP = sessionDevice = null;
+  current = { device, key, promise };
+  reg.upsert(reg.get(key)!, () => {
+    if (current?.promise === promise) current = null;
+    return release(promise);
   });
-  return p;
+  promise.catch(() => {
+    reg.remove(key);
+    if (current?.promise === promise) current = null;
+  });
+  return promise;
 }
 
 export async function unloadLama(reg: ModelRegistry = defaultRegistry) {
-  const p = sessionP;
-  const d = sessionDevice;
-  sessionP = sessionDevice = null;
-  if (d) reg.remove(keyFor(d));
-  (await p?.catch(() => null))?.session.release?.();
+  const c = current;
+  current = null;
+  if (!c) return;
+  reg.remove(c.key);
+  await release(c.promise);
 }
 
 /** Inpaint a 512×512 image; mask pixels with alpha > 0 are filled in. */
@@ -74,10 +97,18 @@ export async function inpaint(device: Device, image: ImageData, mask: ImageData,
   }
   const [inImg, inMask] = session.inputNames;
   const t1 = performance.now();
-  const res = await session.run({
+  const run: Promise<any> = session.run({
     [inImg]: new ort.Tensor('float32', img, [1, 3, LAMA_SIZE, LAMA_SIZE]),
     [inMask]: new ort.Tensor('float32', m, [1, 1, LAMA_SIZE, LAMA_SIZE]),
   });
+  const set = running.get(session) ?? new Set();
+  running.set(session, set.add(run));
+  let res: any;
+  try {
+    res = await run;
+  } finally {
+    set.delete(run);
+  }
   const inferMs = performance.now() - t1;
   const o = res[session.outputNames[0]].data as Float32Array;
   // Some exports output 0..1, others 0..255.

@@ -22,7 +22,7 @@
     "@front-brain/core": "0.1.0"
   },
   "peerDependencies": {
-    "@mediapipe/tasks-vision": ">=0.10.0"
+    "@mediapipe/tasks-vision": "^1.0.1"
   },
   "publishConfig": {
     "access": "public"
